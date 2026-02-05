@@ -1,0 +1,6 @@
+@ditDriveAPI_HostAddress = http://localhost:5133
+
+GET {{ditDriveAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
