@@ -51,16 +51,18 @@ const FileList = ({
   }, [])
 
   return (
-    <section className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 shadow-sm">
+    <section className="bg-gradient-to-br from-sky-50/60 via-white to-white border border-sky-100/70 rounded-2xl p-4 md:p-5 shadow-sm dark:from-[#202225] dark:via-[#202225] dark:to-[#202225] dark:border-slate-800">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-          <FontAwesomeIcon icon={faFileLines} />
+        <div className="flex items-center gap-2 text-sm font-medium text-sky-700 dark:text-sky-300">
+          <FontAwesomeIcon icon={faFileLines} className="text-sky-500 dark:text-sky-300" />
           Files
         </div>
-        <div className="text-xs text-slate-400">{files.length} file</div>
+        <div className="text-xs text-sky-500 dark:text-sky-200">{files.length} file</div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {files.length === 0 && <div className="text-sm text-slate-400">Belum ada file.</div>}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {files.length === 0 && (
+          <div className="text-sm text-slate-400 dark:text-slate-400">Belum ada file.</div>
+        )}
         {visibleFiles.map((file) => (
           <FileCard
             key={file.publicId}

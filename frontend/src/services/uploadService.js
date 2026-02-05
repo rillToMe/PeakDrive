@@ -7,7 +7,8 @@ export const uploadFileWithProgress = async (file, folderPublicId, onProgress, s
     form.append('file', file)
     const token = getToken()
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
-    const target = folderPublicId ? `/api/files/upload?folderPublicId=${folderPublicId}` : '/api/files/upload'
+    const shouldAttachFolder = folderPublicId && folderPublicId !== 'root'
+    const target = shouldAttachFolder ? `/api/files/upload?folderPublicId=${folderPublicId}` : '/api/files/upload'
     const response = await axios.post(target, form, {
       headers,
       signal,

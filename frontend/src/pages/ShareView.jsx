@@ -60,21 +60,21 @@ const ShareView = () => {
   const title = isFolderShare ? 'Share Folder' : 'Share File'
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-slate-50">
-      <div className="w-full max-w-3xl bg-white shadow-sm rounded-2xl p-6 border border-slate-200 space-y-4">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-slate-50 dark:bg-[#1A1B1D] dark:text-slate-100">
+      <div className="w-full max-w-3xl bg-white shadow-sm rounded-2xl p-6 border border-slate-200 space-y-4 dark:bg-[#202225] dark:border-slate-700">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
             <FontAwesomeIcon icon={faShareNodes} />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
-            <p className="text-sm text-slate-500">{filename}</p>
+            <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{title}</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-300">{filename}</p>
           </div>
         </div>
 
         {loading && <ShareSkeleton />}
         {error && (
-          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-950/40 dark:border-red-900/60">
             {error}
           </div>
         )}
@@ -91,13 +91,13 @@ const ShareView = () => {
               <ModelViewer url={blobUrl} format={lowerName} containerClassName="h-64" />
             )}
             {isModel && disableModelPreview && (
-              <div className="h-48 w-full rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center text-sm text-slate-500 gap-2">
+              <div className="h-48 w-full rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center text-sm text-slate-500 gap-2 dark:bg-[#1F2023] dark:border-slate-700 dark:text-slate-400">
                 <FontAwesomeIcon icon={faFileLines} />
                 Preview 3D dinonaktifkan
               </div>
             )}
             {!fileType.startsWith('image/') && !fileType.startsWith('video/') && !isModel && (
-              <div className="h-48 w-full rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center text-sm text-slate-500 gap-2">
+              <div className="h-48 w-full rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center text-sm text-slate-500 gap-2 dark:bg-[#1F2023] dark:border-slate-700 dark:text-slate-400">
                 <FontAwesomeIcon icon={faFileLines} />
                 Preview tidak tersedia
               </div>

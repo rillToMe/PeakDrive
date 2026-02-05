@@ -36,6 +36,14 @@ export const apiFetch = async (path, options = {}, requireAuth = true) => {
   }
   const response = await fetch(path, { ...options, headers })
   if (!response.ok) {
+    if (response.status === 401 && requireAuth) {
+      setToken(null)
+      setUser(null)
+      if (typeof window !== 'undefined') {
+        window.location.replace('/login')
+      }
+      throw new Error('Sesi habis. Silakan login ulang.')
+    }
     const message = await safeReadMessage(response)
     throw new Error(message || `Request failed (${response.status})`)
   }

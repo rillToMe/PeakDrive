@@ -10,7 +10,7 @@ import {
   viewFileBlob,
   downloadFileWithMeta
 } from '../services/driveService.js'
-import { isModel } from '../services/driveUtils.js'
+import { getUniqueName, isModel } from '../services/driveUtils.js'
 
 const MODEL_PREVIEW_LIMIT_MB = 200
 
@@ -122,7 +122,8 @@ const useDriveData = () => {
   const handleCreateFolder = async () => {
     setError('')
     try {
-      const created = await createFolder('New Folder', folderId === 'root' ? null : folderId)
+      const nextName = getUniqueName('New Folder', folders.map((item) => item.name || ''))
+      const created = await createFolder(nextName, folderId === 'root' ? null : folderId)
       setFolders((prev) => [created, ...prev])
       setSelectedFolderId(created.publicId)
       setEditingFolderId(created.publicId)
@@ -138,6 +139,15 @@ const useDriveData = () => {
     if (!name) {
       setEditingFolderId(null)
       setEditingName('')
+      return
+    }
+    const duplicate = folders.some(
+      (item) =>
+        item.publicId !== folderIdToRename &&
+        (item.name || '').trim().toLowerCase() === name.toLowerCase()
+    )
+    if (duplicate) {
+      setError('Nama folder sudah ada. Gunakan nama lain.')
       return
     }
     setError('')
@@ -231,11 +241,11 @@ const useDriveData = () => {
     }
   }
 
-  const openPreview = (file) => {
+  const openPreview = useCallback((file) => {
     setPreviewTarget(file)
     setPreviewVisible(true)
     setPreviewOpenAt(Date.now())
-  }
+  }, [])
 
   const openPreviewById = useCallback(
     async (filePublicId) => {

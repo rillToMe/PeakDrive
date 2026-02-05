@@ -47,7 +47,15 @@ const UploadItem = ({ item, onCancel }) => {
       <div className="relative h-8 w-8">
         {item.status === 'uploading' ? (
           <svg className="h-8 w-8 -rotate-90" viewBox="0 0 32 32">
-            <circle cx="16" cy="16" r={radius} stroke="currentColor" strokeWidth="3" fill="none" className="text-slate-200" />
+            <circle
+              cx="16"
+              cy="16"
+              r={radius}
+              stroke="currentColor"
+              strokeWidth="3"
+              fill="none"
+              className="text-slate-200 dark:text-slate-700"
+            />
             <circle
               cx="16"
               cy="16"
@@ -61,19 +69,21 @@ const UploadItem = ({ item, onCancel }) => {
             />
           </svg>
         ) : (
-          <div className={`h-8 w-8 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center ${status.tone}`}>
+          <div
+            className={`h-8 w-8 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center dark:bg-[#1F2023] dark:border-slate-700 ${status.tone}`}
+          >
             <FontAwesomeIcon icon={status.icon} />
           </div>
         )}
         {item.status === 'uploading' && (
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-slate-700">
+          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-slate-700 dark:text-slate-200">
             {item.progress}%
           </div>
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-slate-800 truncate">{item.filename}</div>
-        <div className="text-xs text-slate-500 flex items-center gap-2">
+        <div className="text-sm font-medium text-slate-800 truncate dark:text-slate-100">{item.filename}</div>
+        <div className="text-xs text-slate-500 flex items-center gap-2 dark:text-slate-400">
           <span className={status.tone}>{status.label}</span>
           {item.status === 'uploading' && estimate && <span className="text-slate-400">~{estimate}</span>}
         </div>
@@ -81,7 +91,7 @@ const UploadItem = ({ item, onCancel }) => {
       {item.status === 'uploading' && (
         <button
           onClick={() => onCancel(item.id)}
-          className="h-8 w-8 rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center justify-center"
+          className="h-8 w-8 rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center justify-center dark:border-slate-700 dark:text-slate-300 dark:hover:text-white dark:hover:bg-[#2a2c30]"
         >
           <FontAwesomeIcon icon={faXmark} />
         </button>

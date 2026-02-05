@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Login from './pages/Login.jsx'
 import Drive from './pages/Drive.jsx'
@@ -7,6 +8,23 @@ import { UploadQueueProvider } from './hooks/UploadQueueProvider.jsx'
 import UploadToastPanel from './components/upload/UploadToastPanel.jsx'
 
 const hasToken = () => Boolean(localStorage.getItem('token'))
+const THEME_KEY = 'peakdrive-theme'
+
+const getStoredTheme = () => localStorage.getItem(THEME_KEY) || 'device'
+
+const resolveTheme = (theme) => {
+  if (theme === 'device') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  }
+  return theme
+}
+
+const applyTheme = (theme) => {
+  const resolved = resolveTheme(theme)
+  const root = document.documentElement
+  root.classList.toggle('dark', resolved === 'dark')
+  root.dataset.theme = theme
+}
 
 const ProtectedRoute = ({ children }) => {
   if (!hasToken()) {
@@ -23,6 +41,25 @@ const PublicOnlyRoute = ({ children }) => {
 }
 
 function App() {
+  const [theme, setTheme] = useState(getStoredTheme())
+
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleUpdate = () => setTheme(getStoredTheme())
+    media.addEventListener('change', handleUpdate)
+    window.addEventListener('storage', handleUpdate)
+    window.addEventListener('theme-change', handleUpdate)
+    return () => {
+      media.removeEventListener('change', handleUpdate)
+      window.removeEventListener('storage', handleUpdate)
+      window.removeEventListener('theme-change', handleUpdate)
+    }
+  }, [])
+
   return (
     <UploadQueueProvider>
       <Routes>

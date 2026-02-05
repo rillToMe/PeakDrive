@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { UploadQueueContext } from './useUploadQueue.js'
+import { getUniqueFileName } from '../services/driveUtils.js'
 import { uploadFileWithProgress } from '../services/uploadService.js'
 
 export const UploadQueueProvider = ({ children }) => {
   const [uploads, setUploads] = useState([])
   const [lastAddedId, setLastAddedId] = useState(null)
-  const configRef = useRef({ folderId: null, onUploaded: null, setError: null })
+  const configRef = useRef({ folderId: null, onUploaded: null, setError: null, existingFileNames: [] })
   const controllersRef = useRef(new Map())
   const clearTimerRef = useRef(null)
 
@@ -87,7 +88,18 @@ export const UploadQueueProvider = ({ children }) => {
     (event) => {
       const files = Array.from(event.target.files || [])
       if (files.length === 0) return
-      files.forEach((file) => startUpload(file))
+      const existingNames = new Set(
+        (configRef.current.existingFileNames || []).map((name) => name.trim().toLowerCase())
+      )
+      files.forEach((file) => {
+        const uniqueName = getUniqueFileName(file.name, Array.from(existingNames))
+        existingNames.add(uniqueName.toLowerCase())
+        const finalFile =
+          uniqueName !== file.name
+            ? new File([file], uniqueName, { type: file.type, lastModified: file.lastModified })
+            : file
+        startUpload(finalFile)
+      })
       event.target.value = ''
     },
     [startUpload]

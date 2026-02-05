@@ -51,18 +51,20 @@ const FolderList = ({
   }, [])
 
   return (
-    <section className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-          <FontAwesomeIcon icon={faFolder} />
+    <section className="bg-gradient-to-br from-amber-50/60 via-white to-white border border-amber-100/70 rounded-2xl p-4 md:p-5 shadow-sm dark:from-[#202225] dark:via-[#202225] dark:to-[#202225] dark:border-slate-800">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-300">
+          <FontAwesomeIcon icon={faFolder} className="text-amber-500 dark:text-amber-300" />
           Folders
         </div>
-        <div className="text-xs text-slate-400">{folders.length} folder</div>
+        <div className="text-xs text-amber-500 dark:text-amber-200">{folders.length} folder</div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        {folders.length === 0 && <div className="text-sm text-slate-400">Belum ada folder.</div>}
+      <div className="flex flex-wrap gap-3">
+        {folders.length === 0 && (
+          <div className="text-sm text-slate-400 dark:text-slate-400">Belum ada folder.</div>
+        )}
         {folders.map((folder) => (
-          <div key={folder.publicId} className="relative">
+          <div key={folder.publicId} className="relative w-full sm:w-[48%] md:w-[31%] lg:w-[23%]">
             <FolderCard
               folder={folder}
               selected={selectedFolderId === folder.publicId}

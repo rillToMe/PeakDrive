@@ -45,24 +45,24 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-slate-50">
-      <div className="w-full max-w-md bg-white shadow-sm rounded-2xl p-6 border border-slate-200">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-slate-50 dark:bg-[#1A1B1D] dark:text-slate-100">
+      <div className="w-full max-w-md bg-white shadow-sm rounded-2xl p-6 border border-slate-200 dark:bg-[#202225] dark:border-slate-700">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
             <FontAwesomeIcon icon={faUserShield} />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">PeakDrive</h1>
-            <p className="text-slate-500 text-sm">Login dengan akun resmi admin</p>
+            <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">PeakDrive</h1>
+            <p className="text-slate-500 text-sm dark:text-slate-300">Login dengan akun resmi admin</p>
           </div>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700">Email</label>
-            <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2">
-              <FontAwesomeIcon icon={faUserShield} className="text-slate-400" />
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Email</label>
+            <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-[#1F2023]">
+              <FontAwesomeIcon icon={faUserShield} className="text-slate-400 dark:text-slate-400" />
               <input
-                className="w-full outline-none text-sm"
+                className="w-full outline-none text-sm bg-transparent text-slate-900 dark:text-slate-100"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -72,11 +72,11 @@ const Login = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Password</label>
-            <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2">
-              <FontAwesomeIcon icon={faLock} className="text-slate-400" />
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Password</label>
+            <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-[#1F2023]">
+              <FontAwesomeIcon icon={faLock} className="text-slate-400 dark:text-slate-400" />
               <input
-                className="w-full outline-none text-sm"
+                className="w-full outline-none text-sm bg-transparent text-slate-900 dark:text-slate-100"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -86,14 +86,14 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
                 <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
               </button>
             </div>
           </div>
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 dark:bg-red-950/40 dark:border-red-900/60">
               {error}
             </div>
           )}

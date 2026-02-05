@@ -23,19 +23,19 @@ const UploadToastPanel = () => {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 z-50">
-      <div className="w-full sm:w-[360px] bg-white border border-slate-200 rounded-2xl shadow-2xl">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-          <div className="text-sm font-semibold text-slate-800">{headerText}</div>
+      <div className="w-full sm:w-[360px] bg-white border border-slate-200 rounded-2xl shadow-2xl dark:bg-[#202225] dark:border-slate-700">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+          <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{headerText}</div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCollapsed((prev) => !prev)}
-              className="h-8 w-8 rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center justify-center"
+              className="h-8 w-8 rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center justify-center dark:border-slate-700 dark:text-slate-300 dark:hover:text-white dark:hover:bg-[#2a2c30]"
             >
               <FontAwesomeIcon icon={collapsed ? faChevronUp : faChevronDown} />
             </button>
             <button
               onClick={() => setClosedAtId(lastAddedId)}
-              className="h-8 w-8 rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center justify-center"
+              className="h-8 w-8 rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center justify-center dark:border-slate-700 dark:text-slate-300 dark:hover:text-white dark:hover:bg-[#2a2c30]"
             >
               <FontAwesomeIcon icon={faXmark} />
             </button>

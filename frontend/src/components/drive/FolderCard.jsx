@@ -31,25 +31,29 @@ const FolderCard = ({
         onSelect()
         onOpen()
       }}
-      className={`relative text-left p-3 pr-10 rounded-xl border bg-white hover:bg-slate-50 transition shadow-sm ${
-        selected ? 'border-blue-400 ring-1 ring-blue-200' : 'border-slate-200'
+      className={`relative text-left h-12 flex items-center gap-2 px-3 pr-10 rounded-xl border bg-amber-50/70 hover:bg-amber-100/60 transition dark:bg-[#1F2023] dark:hover:bg-[#26282c] ${
+        selected
+          ? 'border-indigo-400 ring-2 ring-indigo-200 dark:border-sky-500 dark:ring-sky-700/40'
+          : 'border-amber-200/70 dark:border-slate-700'
       }`}
     >
       <ActionMenu
         open={menuOpen}
         onToggle={onMenuToggle}
+        containerClassName="absolute top-2 right-2"
+        menuClassName="right-0"
         items={[
           {
             label: 'Download',
             icon: faFileArrowDown,
-            tone: 'text-slate-700',
+            tone: 'text-slate-700 dark:text-slate-200',
             onClick: onDownload
           },
           {
             label: copied ? 'Tersalin' : 'Share',
             icon: copied ? faCheck : faShareNodes,
             iconClassName: copied ? 'animate-pulse' : '',
-            tone: copied ? 'text-emerald-600' : 'text-slate-700',
+            tone: copied ? 'text-emerald-600' : 'text-slate-700 dark:text-slate-200',
             onClick: onShare
           },
           {
@@ -60,8 +64,8 @@ const FolderCard = ({
           }
         ]}
       />
-      <div className="flex items-center gap-2 text-slate-800">
-        <FontAwesomeIcon icon={faFolder} className="text-slate-400" />
+      <div className="flex items-center gap-2 text-slate-800 w-full min-w-0 dark:text-slate-100">
+        <FontAwesomeIcon icon={faFolder} className="text-amber-500 dark:text-amber-300" />
         {editing ? (
           <input
             ref={inputRef}
@@ -76,13 +80,12 @@ const FolderCard = ({
                 onCancelRename()
               }
             }}
-            className="w-full border-0 bg-transparent p-0 text-sm font-medium outline-none"
+            className="w-full border-0 bg-transparent p-0 text-sm font-medium outline-none text-slate-900 dark:text-slate-100"
           />
         ) : (
-          <span className="font-medium truncate">{folder.name}</span>
+          <span className="font-medium truncate text-sm">{folder.name}</span>
         )}
       </div>
-      <div className="text-xs text-slate-400 mt-1">Klik untuk buka</div>
     </div>
   )
 }

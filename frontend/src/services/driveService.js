@@ -34,7 +34,8 @@ export const deleteFile = async (publicId) => {
 export const uploadFile = async (file, folderPublicId) => {
   const form = new FormData()
   form.append('file', file)
-  const target = folderPublicId ? `/api/files/upload?folderPublicId=${folderPublicId}` : '/api/files/upload'
+  const shouldAttachFolder = folderPublicId && folderPublicId !== 'root'
+  const target = shouldAttachFolder ? `/api/files/upload?folderPublicId=${folderPublicId}` : '/api/files/upload'
   const response = await apiFetch(target, { method: 'POST', body: form })
   return response.json()
 }

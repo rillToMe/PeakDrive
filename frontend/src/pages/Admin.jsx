@@ -113,21 +113,21 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#1A1B1D] dark:text-slate-100">
+      <header className="bg-white border-b border-slate-200 dark:bg-[#202225] dark:border-slate-700">
         <div className="max-w-5xl mx-auto px-4 py-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
               <FontAwesomeIcon icon={faUserShield} />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-slate-900">Admin Manage</h1>
-              <p className="text-sm text-slate-500">Kelola akun pengguna PeakDrive</p>
+              <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Admin Manage</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-300">Kelola akun pengguna PeakDrive</p>
             </div>
           </div>
           <button
             onClick={() => navigate('/drive')}
-            className="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 flex items-center gap-2"
+            className="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 flex items-center gap-2 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-[#2a2c30]"
           >
             <FontAwesomeIcon icon={faArrowLeft} />
             Kembali ke Drive
@@ -136,16 +136,16 @@ const Admin = () => {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        <section className="bg-white border border-slate-200 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4 text-sm font-semibold text-slate-700">
+        <section className="bg-white border border-slate-200 rounded-2xl p-5 dark:bg-[#202225] dark:border-slate-700">
+          <div className="flex items-center gap-2 mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
             <FontAwesomeIcon icon={faUserPlus} />
             Buat Akun Baru
           </div>
           <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-[1.1fr_1fr_1fr]">
             <div>
-              <label className="text-xs text-slate-500">Email</label>
+              <label className="text-xs text-slate-500 dark:text-slate-300">Email</label>
               <input
-                className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"
+                className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-xl text-sm dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
                 placeholder="email@company.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -154,10 +154,10 @@ const Admin = () => {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-500">Password</label>
+              <label className="text-xs text-slate-500 dark:text-slate-300">Password</label>
               <div className="mt-1 flex gap-2">
                 <input
-                  className="px-3 py-2 border border-slate-300 rounded-xl text-sm flex-1"
+                  className="px-3 py-2 border border-slate-300 rounded-xl text-sm flex-1 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
                   placeholder="Password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -167,7 +167,7 @@ const Admin = () => {
                 <button
                   type="button"
                   onClick={() => setShowCreatePassword((prev) => !prev)}
-                  className="px-3 py-2 rounded-xl border border-slate-300 text-slate-600 text-sm"
+                  className="px-3 py-2 rounded-xl border border-slate-300 text-slate-600 text-sm dark:border-slate-700 dark:text-slate-200"
                 >
                   <FontAwesomeIcon icon={showCreatePassword ? faEyeSlash : faEye} />
                 </button>
@@ -175,9 +175,9 @@ const Admin = () => {
             </div>
             <div className="flex gap-2 items-end">
               <div className="flex-1">
-                <label className="text-xs text-slate-500">Role</label>
+                <label className="text-xs text-slate-500 dark:text-slate-300">Role</label>
                 <select
-                  className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"
+                  className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-xl text-sm dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
                   value={role}
                   onChange={(event) => setRole(event.target.value)}
                 >
@@ -193,16 +193,16 @@ const Admin = () => {
           </form>
         </section>
 
-        <section className="bg-white border border-slate-200 rounded-2xl p-5">
+        <section className="bg-white border border-slate-200 rounded-2xl p-5 dark:bg-[#202225] dark:border-slate-700">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               <FontAwesomeIcon icon={faUsers} />
               Daftar User
             </div>
-            <div className="text-xs text-slate-400">{users.length} akun</div>
+            <div className="text-xs text-slate-400 dark:text-slate-400">{users.length} akun</div>
           </div>
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3 dark:bg-red-950/40 dark:border-red-900/60">
               {error}
             </div>
           )}
@@ -212,7 +212,7 @@ const Admin = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-slate-500 border-b">
+                  <tr className="text-left text-slate-500 border-b dark:text-slate-400 dark:border-slate-700">
                     <th className="py-2">ID</th>
                     <th>Email</th>
                     <th>Role</th>
@@ -222,11 +222,11 @@ const Admin = () => {
                 </thead>
                 <tbody>
                   {users.map((item) => (
-                    <tr key={item.id} className="border-b last:border-b-0 align-top">
+                    <tr key={item.id} className="border-b last:border-b-0 align-top dark:border-slate-700">
                       <td className="py-3">{item.id}</td>
                       <td className="py-3">{item.email}</td>
                       <td className="py-3">
-                        <span className="px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-600">
+                        <span className="px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-600 dark:bg-[#1F2023] dark:text-slate-200">
                           {item.role}
                         </span>
                       </td>
@@ -239,14 +239,14 @@ const Admin = () => {
                               setResetPassword('')
                               setShowResetPassword(false)
                             }}
-                            className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-xs flex items-center gap-2"
+                            className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-xs flex items-center gap-2 dark:border-slate-700 dark:text-slate-200"
                           >
                             <FontAwesomeIcon icon={faKey} />
                             Reset PW
                           </button>
                           <button
                             onClick={() => handleDeleteUser(item.id)}
-                            className="px-2.5 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs flex items-center gap-2"
+                            className="px-2.5 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs flex items-center gap-2 dark:border-red-800 dark:text-red-400"
                           >
                             <FontAwesomeIcon icon={faTrash} />
                             Delete
@@ -255,10 +255,12 @@ const Admin = () => {
                         {resetUserId === item.id && (
                           <form onSubmit={handleResetPassword} className="mt-2 flex flex-wrap gap-2">
                             <div className="flex-1">
-                              <label className="text-[11px] text-slate-500">Password baru</label>
+                              <label className="text-[11px] text-slate-500 dark:text-slate-300">
+                                Password baru
+                              </label>
                               <div className="mt-1 flex gap-2">
                                 <input
-                                  className="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs flex-1"
+                                  className="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs flex-1 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
                                   placeholder="Password baru"
                                   value={resetPassword}
                                   onChange={(event) => setResetPassword(event.target.value)}
@@ -268,7 +270,7 @@ const Admin = () => {
                                 <button
                                   type="button"
                                   onClick={() => setShowResetPassword((prev) => !prev)}
-                                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-xs"
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-xs dark:border-slate-700 dark:text-slate-200"
                                 >
                                   <FontAwesomeIcon icon={showResetPassword ? faEyeSlash : faEye} />
                                 </button>

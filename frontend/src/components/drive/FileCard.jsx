@@ -2,7 +2,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCheck,
   faCube,
-  faEye,
   faFileArrowDown,
   faFileLines,
   faFilm,
@@ -36,90 +35,77 @@ const FileCard = ({
   return (
     <div
       onClick={onOpen}
-      className="relative p-4 rounded-2xl border border-slate-200 bg-white space-y-3 shadow-sm hover:shadow-md transition cursor-pointer"
+      className="relative rounded-2xl border border-sky-200/70 bg-white shadow-sm hover:shadow-md transition cursor-pointer overflow-visible hover:-translate-y-0.5 dark:border-slate-700 dark:bg-[#202225]"
     >
-      <button
-        onClick={(event) => {
-          event.stopPropagation()
-          onOpen()
-        }}
-        className="absolute top-3 right-12 h-9 w-9 rounded-full bg-white border border-slate-200 p-0 text-slate-500 hover:text-slate-800 flex items-center justify-center shadow-sm"
-      >
-        <FontAwesomeIcon icon={faEye} />
-      </button>
-      <ActionMenu
-        open={menuOpen}
-        onToggle={onMenuToggle}
-        items={[
-          {
-            label: 'Download',
-            icon: faFileArrowDown,
-            tone: 'text-slate-700',
-            onClick: onDownload
-          },
-          {
-            label: copied ? 'Tersalin' : 'Share',
-            icon: copied ? faCheck : faShareNodes,
-            iconClassName: copied ? 'animate-pulse' : '',
-            tone: copied ? 'text-emerald-600' : 'text-slate-700',
-            onClick: onShare
-          },
-          {
-            label: 'Delete',
-            icon: faTrash,
-            tone: 'text-red-600',
-            onClick: onDelete
-          }
-        ]}
-      />
-      <div className="pr-20 space-y-1">
-        <div className="text-sm font-medium text-slate-800 truncate">{name}</div>
+      <div className="h-28 w-full bg-gradient-to-br from-sky-50 to-indigo-50 flex items-center justify-center overflow-hidden rounded-t-2xl dark:from-[#1F2023] dark:to-[#1F2023]">
+        {file.fileType?.startsWith('image/') && previews[file.publicId]?.url && (
+          <img
+            src={previews[file.publicId]?.url}
+            alt={name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        )}
+        {file.fileType?.startsWith('video/') && previews[file.publicId]?.url && (
+          <video
+            src={previews[file.publicId]?.url}
+            className="h-full w-full object-cover bg-black"
+            muted
+            playsInline
+          />
+        )}
+        {isModel(name) && previews[file.publicId]?.url && !disableModelPreview && (
+          <ModelViewer url={previews[file.publicId]?.url} format={modelExtension} containerClassName="h-full" />
+        )}
+        {((isModel(name) && disableModelPreview) ||
+          (!file.fileType?.startsWith('image/') && !file.fileType?.startsWith('video/') && !isModel(name))) && (
+          <div className="flex flex-col items-center justify-center text-xs text-slate-400 gap-1 dark:text-slate-400">
+            <FontAwesomeIcon icon={isModel(name) ? faCube : faFileLines} className="text-lg" />
+            {isModel(name) ? 'Preview 3D nonaktif' : 'Preview tidak tersedia'}
+          </div>
+        )}
       </div>
-      {file.fileType?.startsWith('image/') && previews[file.publicId]?.url && (
-        <img
-          src={previews[file.publicId]?.url}
-          alt={name}
-          className="h-40 w-full object-cover rounded-lg"
-          loading="lazy"
-        />
-      )}
-      {file.fileType?.startsWith('video/') && previews[file.publicId]?.url && (
-        <video
-          src={previews[file.publicId]?.url}
-          className="h-40 w-full rounded-lg bg-black"
-          controls
-          preload="metadata"
-        />
-      )}
-      {isModel(name) && previews[file.publicId]?.url && !disableModelPreview && (
-        <ModelViewer url={previews[file.publicId]?.url} format={modelExtension} />
-      )}
-      {isModel(name) && disableModelPreview && (
-        <div className="h-40 w-full rounded-lg bg-white border border-dashed border-slate-200 flex flex-col items-center justify-center text-sm text-slate-400 gap-2">
-          <FontAwesomeIcon icon={faCube} className="text-lg" />
-          Preview 3D dinonaktifkan
+      <div className="p-3 space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-medium text-slate-800 truncate dark:text-slate-100">{name}</div>
+          <ActionMenu
+            open={menuOpen}
+            onToggle={onMenuToggle}
+            containerClassName="relative"
+            buttonClassName="h-7 w-7 shadow-none border-slate-200/70 dark:border-slate-700 dark:text-slate-300 dark:hover:text-white"
+            menuClassName="right-0 top-full mt-2 z-30"
+            items={[
+              {
+                label: 'Download',
+                icon: faFileArrowDown,
+                tone: 'text-slate-700 dark:text-slate-200',
+                onClick: onDownload
+              },
+              {
+                label: copied ? 'Tersalin' : 'Share',
+                icon: copied ? faCheck : faShareNodes,
+                iconClassName: copied ? 'animate-pulse' : '',
+                tone: copied ? 'text-emerald-600' : 'text-slate-700 dark:text-slate-200',
+                onClick: onShare
+              },
+              {
+                label: 'Delete',
+                icon: faTrash,
+                tone: 'text-red-600',
+                onClick: onDelete
+              }
+            ]}
+          />
         </div>
-      )}
-      {!file.fileType?.startsWith('image/') && !file.fileType?.startsWith('video/') && !isModel(name) && (
-        <div className="h-40 w-full rounded-lg bg-white border border-dashed border-slate-200 flex flex-col items-center justify-center text-sm text-slate-400 gap-2">
-          <FontAwesomeIcon icon={faFileLines} className="text-lg" />
-          Preview tidak tersedia
-        </div>
-      )}
-      <div className="flex items-center gap-2 text-sm text-slate-600">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           {file.fileType?.startsWith('image/') && <FontAwesomeIcon icon={faImage} />}
           {file.fileType?.startsWith('video/') && <FontAwesomeIcon icon={faFilm} />}
           {isModel(name) && <FontAwesomeIcon icon={faCube} />}
           {!file.fileType?.startsWith('image/') && !file.fileType?.startsWith('video/') && !isModel(name) && (
             <FontAwesomeIcon icon={faFileLines} />
           )}
-          {modelExtension && (
-            <span className="text-[10px] uppercase text-slate-500 bg-white/80 rounded-md px-1.5 py-0.5">
-              {modelExtension}
-            </span>
-          )}
-          <span className="text-xs">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+          {modelExtension && <span className="uppercase text-[10px]">{modelExtension}</span>}
+          <span>{(file.size / 1024 / 1024).toFixed(2)} MB</span>
         </div>
       </div>
     </div>
