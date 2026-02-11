@@ -14,6 +14,14 @@ export const createFolder = async (name, parentPublicId) => {
   return response.json()
 }
 
+export const checkFolderExists = async (name, parentPublicId) => {
+  const target = parentPublicId 
+    ? `/api/folders/exists?name=${encodeURIComponent(name)}&parentPublicId=${parentPublicId}`
+    : `/api/folders/exists?name=${encodeURIComponent(name)}`
+  const response = await apiFetch(target)
+  return response.json()
+}
+
 export const renameFolder = async (publicId, name) => {
   const response = await apiFetch(`/api/folders/${publicId}`, {
     method: 'PUT',
@@ -65,6 +73,11 @@ export const viewFileBlob = async (publicId) => {
   return response.blob()
 }
 
+export const getStorageUsage = async () => {
+  const response = await apiFetch('/api/files/usage')
+  return response.json()
+}
+
 export const createShare = async (filePublicId) => {
   const response = await apiFetch(`/api/share/${filePublicId}`, { method: 'POST' })
   return response.json()
@@ -72,5 +85,40 @@ export const createShare = async (filePublicId) => {
 
 export const createFolderShare = async (folderPublicId) => {
   const response = await apiFetch(`/api/share/folder/${folderPublicId}`, { method: 'POST' })
+  return response.json()
+}
+
+export const getTrash = async () => {
+  const response = await apiFetch('/api/trash')
+  return response.json()
+}
+
+export const restoreTrashFile = async (publicId) => {
+  const response = await apiFetch(`/api/trash/restore/file/${publicId}`, { method: 'POST' })
+  return response.json()
+}
+
+export const restoreTrashFolder = async (publicId) => {
+  const response = await apiFetch(`/api/trash/restore/folder/${publicId}`, { method: 'POST' })
+  return response.json()
+}
+
+export const deleteTrashFilePermanently = async (publicId) => {
+  await apiFetch(`/api/trash/file/${publicId}`, { method: 'DELETE' })
+}
+
+export const deleteTrashFolderPermanently = async (publicId) => {
+  await apiFetch(`/api/trash/folder/${publicId}`, { method: 'DELETE' })
+}
+
+export const cleanTrash = async (days) => {
+  const target = Number.isFinite(days) ? `/api/trash/clean?days=${days}` : '/api/trash/clean'
+  const response = await apiFetch(target, { method: 'POST' })
+  return response.json()
+}
+
+export const getActivityLogs = async (take) => {
+  const target = Number.isFinite(take) ? `/api/admin/activity-logs?take=${take}` : '/api/admin/activity-logs'
+  const response = await apiFetch(target)
   return response.json()
 }

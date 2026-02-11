@@ -14,6 +14,36 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
     private readonly IConfiguration _configuration = configuration;
     private readonly IWebHostEnvironment _environment = environment;
 
+    [HttpGet("exists")]
+    public IActionResult CheckFolderExists([FromQuery] string name, [FromQuery] string? parentPublicId)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return BadRequest("Folder name is required.");
+        }
+
+        var userId = GetUserId();
+        int? parentId = null;
+        if (!string.IsNullOrWhiteSpace(parentPublicId) && !string.Equals(parentPublicId, "root", StringComparison.OrdinalIgnoreCase))
+        {
+            var parent = _db.Folders.FirstOrDefault(f =>
+                f.PublicId == parentPublicId && f.UserId == userId && f.DeletedAt == null);
+            if (parent == null)
+            {
+                return NotFound("Parent folder not found.");
+            }
+            parentId = parent.Id;
+        }
+
+        var exists = _db.Folders.Any(f =>
+            f.Name.ToLower() == name.Trim().ToLower() &&
+            f.ParentId == parentId &&
+            f.UserId == userId &&
+            f.DeletedAt == null);
+
+        return Ok(new { exists });
+    }
+
     [HttpPost]
     public IActionResult CreateFolder([FromBody] CreateFolderRequest request)
     {
@@ -26,7 +56,8 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
         int? parentId = null;
         if (!string.IsNullOrWhiteSpace(request.ParentPublicId))
         {
-            var parent = _db.Folders.FirstOrDefault(f => f.PublicId == request.ParentPublicId && f.UserId == userId);
+            var parent = _db.Folders.FirstOrDefault(f =>
+                f.PublicId == request.ParentPublicId && f.UserId == userId && f.DeletedAt == null);
             if (parent == null)
             {
                 return NotFound("Parent folder not found.");
@@ -45,6 +76,7 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
 
         _db.Folders.Add(folder);
         _db.SaveChanges();
+        LogActivity(userId, "create-folder", "success", $"Created {folder.Name}");
 
         return Ok(new FolderDto(folder.PublicId, folder.Name, request.ParentPublicId, folder.CreatedAt));
     }
@@ -57,13 +89,13 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
         if (string.Equals(publicId, "root", StringComparison.OrdinalIgnoreCase))
         {
             var rootFolders = _db.Folders
-                .Where(f => f.UserId == userId && f.ParentId == null)
+                .Where(f => f.UserId == userId && f.ParentId == null && f.DeletedAt == null)
                 .OrderBy(f => f.Name)
                 .Select(f => new FolderDto(f.PublicId, f.Name, null, f.CreatedAt))
                 .ToList();
 
             var rootFiles = _db.Files
-                .Where(f => f.UserId == userId && f.FolderId == null)
+                .Where(f => f.UserId == userId && f.FolderId == null && f.DeletedAt == null)
                 .OrderBy(f => f.Filename)
                 .Select(f => new FileDto(f.PublicId, f.Filename, f.FileType, f.Size, f.UploadedAt))
                 .ToList();
@@ -71,20 +103,21 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
             return Ok(new FolderListing(null, rootFolders, rootFiles));
         }
 
-        var folderEntity = _db.Folders.FirstOrDefault(f => f.PublicId == publicId && f.UserId == userId);
+        var folderEntity = _db.Folders.FirstOrDefault(f =>
+            f.PublicId == publicId && f.UserId == userId && f.DeletedAt == null);
         if (folderEntity == null)
         {
             return NotFound();
         }
 
         var folders = _db.Folders
-            .Where(f => f.UserId == userId && f.ParentId == folderEntity.Id)
+            .Where(f => f.UserId == userId && f.ParentId == folderEntity.Id && f.DeletedAt == null)
             .OrderBy(f => f.Name)
             .Select(f => new FolderDto(f.PublicId, f.Name, publicId, f.CreatedAt))
             .ToList();
 
         var files = _db.Files
-            .Where(f => f.UserId == userId && f.FolderId == folderEntity.Id)
+            .Where(f => f.UserId == userId && f.FolderId == folderEntity.Id && f.DeletedAt == null)
             .OrderBy(f => f.Filename)
             .Select(f => new FileDto(f.PublicId, f.Filename, f.FileType, f.Size, f.UploadedAt))
             .ToList();
@@ -109,7 +142,8 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
         }
 
         var userId = GetUserId();
-        var folder = _db.Folders.FirstOrDefault(f => f.PublicId == publicId && f.UserId == userId);
+        var folder = _db.Folders.FirstOrDefault(f =>
+            f.PublicId == publicId && f.UserId == userId && f.DeletedAt == null);
         if (folder == null)
         {
             return NotFound();
@@ -130,7 +164,8 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
     public IActionResult DownloadFolder(string publicId)
     {
         var userId = GetUserId();
-        var folder = _db.Folders.FirstOrDefault(f => f.PublicId == publicId && f.UserId == userId);
+        var folder = _db.Folders.FirstOrDefault(f =>
+            f.PublicId == publicId && f.UserId == userId && f.DeletedAt == null);
         if (folder == null)
         {
             return NotFound();
@@ -179,7 +214,8 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
     private IActionResult DeleteFolderInternal(string publicId)
     {
         var userId = GetUserId();
-        var folder = _db.Folders.FirstOrDefault(f => f.PublicId == publicId && f.UserId == userId);
+        var folder = _db.Folders.FirstOrDefault(f =>
+            f.PublicId == publicId && f.UserId == userId && f.DeletedAt == null);
         if (folder == null)
         {
             return NotFound();
@@ -187,13 +223,14 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
 
         try
         {
-            DeleteFolderTree(folder, userId);
+            MoveFolderToTrash(folder, userId, DateTime.UtcNow);
         }
         catch (InvalidOperationException)
         {
             return BadRequest("Invalid storage path.");
         }
         _db.SaveChanges();
+        LogActivity(userId, "delete-folder", "success", $"Moved {folder.Name} to trash");
         return NoContent();
     }
 
@@ -228,7 +265,7 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
         }
 
         var children = _db.Folders
-            .Where(f => f.UserId == userId && f.ParentId == folder.Id)
+            .Where(f => f.UserId == userId && f.ParentId == folder.Id && f.DeletedAt == null)
             .OrderBy(f => f.Name)
             .ToList();
 
@@ -261,6 +298,41 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
         }
 
         _db.Folders.Remove(folder);
+    }
+
+    private void MoveFolderToTrash(DriveFolder folder, int userId, DateTime deletedAt)
+    {
+        folder.DeletedAt = deletedAt;
+        var files = _db.Files.Where(f => f.UserId == userId && f.FolderId == folder.Id && f.DeletedAt == null).ToList();
+        foreach (var file in files)
+        {
+            file.DeletedAt = deletedAt;
+        }
+
+        var children = _db.Folders.Where(f => f.UserId == userId && f.ParentId == folder.Id && f.DeletedAt == null).ToList();
+        foreach (var child in children)
+        {
+            MoveFolderToTrash(child, userId, deletedAt);
+        }
+    }
+
+    private void LogActivity(int? userId, string action, string status, string message)
+    {
+        try
+        {
+            _db.ActivityLogs.Add(new ActivityLog
+            {
+                UserId = userId,
+                Action = action,
+                Status = status,
+                Message = message,
+                CreatedAt = DateTime.UtcNow
+            });
+            _db.SaveChanges();
+        }
+        catch
+        {
+        }
     }
 
     private string GetStorageRoot()

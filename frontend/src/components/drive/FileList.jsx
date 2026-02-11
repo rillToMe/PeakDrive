@@ -14,7 +14,9 @@ const FileList = ({
   onShare,
   onDelete,
   onVisibleFilesChange,
-  copiedFileId
+  copiedFileId,
+  selectedItems,
+  setSelectedItems
 }) => {
   const [filesChunk, setFilesChunk] = useState(1)
   const [menuFileId, setMenuFileId] = useState(null)
@@ -50,16 +52,29 @@ const FileList = ({
     return () => window.removeEventListener('click', handleClick)
   }, [])
 
+  const handleToggleSelect = (fileId) => {
+    setSelectedItems((prev) => {
+      const isSelected = prev.files.includes(fileId)
+      if (isSelected) {
+        return { ...prev, files: prev.files.filter((id) => id !== fileId) }
+      } else {
+        return { ...prev, files: [...prev.files, fileId] }
+      }
+    })
+  }
+
+  const selectionMode = selectedItems.files.length > 0 || selectedItems.folders.length > 0
+
   return (
-    <section className="bg-gradient-to-br from-sky-50/60 via-white to-white border border-sky-100/70 rounded-2xl p-4 md:p-5 shadow-sm dark:from-[#202225] dark:via-[#202225] dark:to-[#202225] dark:border-slate-800">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-sm font-medium text-sky-700 dark:text-sky-300">
-          <FontAwesomeIcon icon={faFileLines} className="text-sky-500 dark:text-sky-300" />
+    <section className="w-full">
+      <div className="flex items-center justify-between mb-5 px-1">
+        <div className="flex items-center gap-2 text-lg font-medium text-slate-800 dark:text-slate-100">
+          <FontAwesomeIcon icon={faFileLines} className="text-sky-500 dark:text-sky-400 text-base" />
           Files
         </div>
-        <div className="text-xs text-sky-500 dark:text-sky-200">{files.length} file</div>
+        <div className="text-xs font-medium text-slate-500/80 dark:text-slate-400/80">{files.length} file</div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
         {files.length === 0 && (
           <div className="text-sm text-slate-400 dark:text-slate-400">Belum ada file.</div>
         )}
@@ -87,6 +102,9 @@ const FileList = ({
               setMenuFileId((prev) => (prev === file.publicId ? null : file.publicId))
             }
             copied={copiedFileId === file.publicId}
+            multiSelected={selectedItems.files.includes(file.publicId)}
+            onToggleSelect={() => handleToggleSelect(file.publicId)}
+            selectionMode={selectionMode}
           />
         ))}
       </div>

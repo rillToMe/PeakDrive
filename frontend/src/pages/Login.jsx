@@ -53,13 +53,13 @@ const Login = () => {
           </div>
           <div>
             <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">PeakDrive</h1>
-            <p className="text-slate-500 text-sm dark:text-slate-300">Login dengan akun resmi admin</p>
+            <p className="text-slate-600 text-base dark:text-slate-300 mt-0.5">Login dengan akun resmi admin</p>
           </div>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Email</label>
-            <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-[#1F2023]">
+            <label className="block text-xs font-medium text-slate-500/80 dark:text-slate-300/80 uppercase tracking-wide">Email</label>
+            <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 dark:border-slate-700 dark:bg-[#1F2023] focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500 transition">
               <FontAwesomeIcon icon={faUserShield} className="text-slate-400 dark:text-slate-400" />
               <input
                 className="w-full outline-none text-sm bg-transparent text-slate-900 dark:text-slate-100"
@@ -72,8 +72,8 @@ const Login = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Password</label>
-            <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-[#1F2023]">
+            <label className="block text-xs font-medium text-slate-500/80 dark:text-slate-300/80 uppercase tracking-wide">Password</label>
+            <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 dark:border-slate-700 dark:bg-[#1F2023] focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500 transition">
               <FontAwesomeIcon icon={faLock} className="text-slate-400 dark:text-slate-400" />
               <input
                 className="w-full outline-none text-sm bg-transparent text-slate-900 dark:text-slate-100"
@@ -86,7 +86,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
               >
                 <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
               </button>

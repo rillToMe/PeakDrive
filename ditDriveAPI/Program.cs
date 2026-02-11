@@ -1,8 +1,11 @@
 using System.Text;
+using System.Threading;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ditDriveAPI.Data;
@@ -43,6 +46,82 @@ static void LoadDotEnv(string filePath)
 
         Environment.SetEnvironmentVariable(key, value);
     }
+}
+
+static async Task RunTrashCleanup(IServiceProvider services, ILogger logger, string storageRoot, int retentionDays)
+{
+    try
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
+
+        var foldersToDelete = db.Folders
+            .Where(f => f.DeletedAt != null && f.DeletedAt < cutoff)
+            .Where(f => f.ParentId == null || db.Folders.Any(p => p.Id == f.ParentId && p.DeletedAt == null))
+            .ToList();
+        foreach (var folder in foldersToDelete)
+        {
+            DeleteFolderTree(db, folder, storageRoot);
+        }
+
+        var filesToDelete = db.Files
+            .Where(f => f.DeletedAt != null && f.DeletedAt < cutoff)
+            .Where(f => f.FolderId == null || db.Folders.Any(p => p.Id == f.FolderId && p.DeletedAt == null))
+            .ToList();
+        foreach (var file in filesToDelete)
+        {
+            if (!TryBuildFilePath(file, storageRoot, out var fullPath))
+            {
+                continue;
+            }
+            if (System.IO.File.Exists(fullPath))
+            {
+                System.IO.File.Delete(fullPath);
+            }
+        }
+        db.Files.RemoveRange(filesToDelete);
+        await db.SaveChangesAsync();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Trash cleanup failed.");
+    }
+}
+
+static void DeleteFolderTree(AppDbContext db, DriveFolder folder, string storageRoot)
+{
+    var files = db.Files.Where(f => f.UserId == folder.UserId && f.FolderId == folder.Id).ToList();
+    foreach (var file in files)
+    {
+        if (!TryBuildFilePath(file, storageRoot, out var fullPath))
+        {
+            throw new InvalidOperationException("Invalid storage path.");
+        }
+        if (System.IO.File.Exists(fullPath))
+        {
+            System.IO.File.Delete(fullPath);
+        }
+    }
+    db.Files.RemoveRange(files);
+
+    var children = db.Folders.Where(f => f.UserId == folder.UserId && f.ParentId == folder.Id).ToList();
+    foreach (var child in children)
+    {
+        DeleteFolderTree(db, child, storageRoot);
+    }
+
+    db.Folders.Remove(folder);
+}
+
+static bool TryBuildFilePath(DriveFile file, string storageRoot, out string fullPath)
+{
+    var root = storageRoot.EndsWith(Path.DirectorySeparatorChar) || storageRoot.EndsWith(Path.AltDirectorySeparatorChar)
+        ? storageRoot
+        : storageRoot + Path.DirectorySeparatorChar;
+    var folderSegment = file.FolderId.HasValue ? $"folder_{file.FolderId}" : "folder_root";
+    fullPath = Path.GetFullPath(Path.Combine(root, $"user_{file.UserId}", folderSegment, file.StoredName));
+    return fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase);
 }
 
 LoadDotEnv(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
@@ -108,12 +187,12 @@ if (httpsPort.HasValue)
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 2L * 1024 * 1024 * 1024;
+    options.Limits.MaxRequestBodySize = 5L * 1024 * 1024 * 1024;
 });
 
 builder.Services.Configure<FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 2L * 1024 * 1024 * 1024;
+    options.MultipartBodyLengthLimit = 5L * 1024 * 1024 * 1024;
     options.ValueLengthLimit = int.MaxValue;
     options.MultipartHeadersLengthLimit = int.MaxValue;
 });
@@ -189,6 +268,23 @@ if (app.Environment.IsDevelopment())
 var storageRoot = builder.Configuration["Storage:RootPath"] ?? "storage";
 var storageFullPath = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, storageRoot));
 Directory.CreateDirectory(storageFullPath);
+
+var retentionDays = builder.Configuration.GetValue<int?>("Trash:RetentionDays") ?? 30;
+if (retentionDays > 0)
+{
+    app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        _ = Task.Run(async () =>
+        {
+            await RunTrashCleanup(app.Services, app.Logger, storageFullPath, retentionDays);
+            using var timer = new PeriodicTimer(TimeSpan.FromHours(24));
+            while (await timer.WaitForNextTickAsync())
+            {
+                await RunTrashCleanup(app.Services, app.Logger, storageFullPath, retentionDays);
+            }
+        });
+    });
+}
 
 if (httpsPort.HasValue)
 {

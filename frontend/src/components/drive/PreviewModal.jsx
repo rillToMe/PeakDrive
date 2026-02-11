@@ -32,7 +32,7 @@ const PreviewModal = ({ open, file, previews, onClose, openAt }) => {
           <FontAwesomeIcon icon={faXmark} />
         </button>
         <div className="mb-4">
-          <div className="text-lg font-semibold text-slate-900 truncate dark:text-slate-100">{name}</div>
+          <div className="text-xl font-semibold text-slate-900 truncate dark:text-slate-100 leading-tight">{name}</div>
         </div>
         <div className="space-y-4">
           {file.fileType?.startsWith('image/') && preview?.url && (

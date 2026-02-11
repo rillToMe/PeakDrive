@@ -8,39 +8,56 @@ namespace ditDriveAPI.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "FolderId",
-                table: "Shares",
-                type: "integer",
-                nullable: true);
+            migrationBuilder.Sql("""
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'Shares' AND column_name = 'FolderId'
+    ) THEN
+        ALTER TABLE "Shares" ADD COLUMN "FolderId" integer;
+    END IF;
+END
+$$;
+""");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Shares_FolderId",
-                table: "Shares",
-                column: "FolderId");
+            migrationBuilder.Sql("""
+CREATE INDEX IF NOT EXISTS "IX_Shares_FolderId" ON "Shares" ("FolderId");
+""");
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_Shares_Folders_FolderId",
-                table: "Shares",
-                column: "FolderId",
-                principalTable: "Folders",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+            migrationBuilder.Sql("""
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'FK_Shares_Folders_FolderId'
+    ) THEN
+        ALTER TABLE "Shares"
+            ADD CONSTRAINT "FK_Shares_Folders_FolderId"
+            FOREIGN KEY ("FolderId")
+            REFERENCES "Folders" ("Id")
+            ON DELETE CASCADE;
+    END IF;
+END
+$$;
+""");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_Shares_Folders_FolderId",
-                table: "Shares");
+            migrationBuilder.Sql("""
+ALTER TABLE "Shares" DROP CONSTRAINT IF EXISTS "FK_Shares_Folders_FolderId";
+""");
 
-            migrationBuilder.DropIndex(
-                name: "IX_Shares_FolderId",
-                table: "Shares");
+            migrationBuilder.Sql("""
+DROP INDEX IF EXISTS "IX_Shares_FolderId";
+""");
 
-            migrationBuilder.DropColumn(
-                name: "FolderId",
-                table: "Shares");
+            migrationBuilder.Sql("""
+ALTER TABLE "Shares" DROP COLUMN IF EXISTS "FolderId";
+""");
         }
     }
 }

@@ -82,10 +82,10 @@ const UploadItem = ({ item, onCancel }) => {
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-slate-800 truncate dark:text-slate-100">{item.filename}</div>
-        <div className="text-xs text-slate-500 flex items-center gap-2 dark:text-slate-400">
+        <div className="text-sm font-medium text-slate-800 truncate dark:text-slate-100 leading-tight">{item.filename}</div>
+        <div className="text-xs font-normal text-slate-500/80 flex items-center gap-2 dark:text-slate-400/80 mt-0.5">
           <span className={status.tone}>{status.label}</span>
-          {item.status === 'uploading' && estimate && <span className="text-slate-400">~{estimate}</span>}
+          {item.status === 'uploading' && estimate && <span className="text-slate-400/60 font-normal">~{estimate}</span>}
         </div>
       </div>
       {item.status === 'uploading' && (

@@ -36,6 +36,36 @@ public class AdminController(AppDbContext db) : ControllerBase
         return Ok(users);
     }
 
+    [HttpGet("activity-logs")]
+    public IActionResult GetActivityLogs([FromQuery] int? take)
+    {
+        var limit = take.GetValueOrDefault(200);
+        if (limit <= 0)
+        {
+            limit = 200;
+        }
+        if (limit > 1000)
+        {
+            limit = 1000;
+        }
+
+        var logs = _db.ActivityLogs
+            .OrderByDescending(l => l.CreatedAt)
+            .Take(limit)
+            .Select(l => new ActivityLogDto(
+                l.Id,
+                l.UserId,
+                _db.Users.Where(u => u.Id == l.UserId).Select(u => u.Email).FirstOrDefault(),
+                l.Action,
+                l.Status,
+                l.Message,
+                l.CreatedAt
+            ))
+            .ToList();
+
+        return Ok(logs);
+    }
+
     [HttpPost("reset-password")]
     public IActionResult ResetPassword([FromBody] ResetPasswordRequest request)
     {
@@ -130,3 +160,12 @@ public class AdminController(AppDbContext db) : ControllerBase
 public record CreateUserRequest(string Email, string Password);
 public record UserSummary(int Id, string Email, string Role, DateTime CreatedAt);
 public record ResetPasswordRequest(int UserId, string NewPassword);
+public record ActivityLogDto(
+    int Id,
+    int? UserId,
+    string? UserEmail,
+    string Action,
+    string Status,
+    string Message,
+    DateTime CreatedAt
+);

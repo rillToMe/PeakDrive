@@ -7,6 +7,7 @@
 *.log
 Thumbs.db
 .DS_Store
+deploy/
 
 **/bin/
 **/obj/

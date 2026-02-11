@@ -137,15 +137,15 @@ const Admin = () => {
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         <section className="bg-white border border-slate-200 rounded-2xl p-5 dark:bg-[#202225] dark:border-slate-700">
-          <div className="flex items-center gap-2 mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            <FontAwesomeIcon icon={faUserPlus} />
+          <div className="flex items-center gap-2 mb-4 text-lg font-medium text-slate-800 dark:text-slate-100">
+            <FontAwesomeIcon icon={faUserPlus} className="text-sky-500" />
             Buat Akun Baru
           </div>
           <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-[1.1fr_1fr_1fr]">
             <div>
-              <label className="text-xs text-slate-500 dark:text-slate-300">Email</label>
+              <label className="text-xs font-medium text-slate-500/80 dark:text-slate-300/80 uppercase tracking-wide">Email</label>
               <input
-                className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-xl text-sm dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
+                className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-xl text-sm dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition"
                 placeholder="email@company.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -154,10 +154,10 @@ const Admin = () => {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-500 dark:text-slate-300">Password</label>
+              <label className="text-xs font-medium text-slate-500/80 dark:text-slate-300/80 uppercase tracking-wide">Password</label>
               <div className="mt-1 flex gap-2">
                 <input
-                  className="px-3 py-2 border border-slate-300 rounded-xl text-sm flex-1 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
+                  className="px-3 py-2 border border-slate-300 rounded-xl text-sm flex-1 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition"
                   placeholder="Password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -167,7 +167,7 @@ const Admin = () => {
                 <button
                   type="button"
                   onClick={() => setShowCreatePassword((prev) => !prev)}
-                  className="px-3 py-2 rounded-xl border border-slate-300 text-slate-600 text-sm dark:border-slate-700 dark:text-slate-200"
+                  className="px-3 py-2 rounded-xl border border-slate-300 text-slate-600 text-sm dark:border-slate-700 dark:text-slate-200 hover:bg-slate-50 transition"
                 >
                   <FontAwesomeIcon icon={showCreatePassword ? faEyeSlash : faEye} />
                 </button>
@@ -175,9 +175,9 @@ const Admin = () => {
             </div>
             <div className="flex gap-2 items-end">
               <div className="flex-1">
-                <label className="text-xs text-slate-500 dark:text-slate-300">Role</label>
+                <label className="text-xs font-medium text-slate-500/80 dark:text-slate-300/80 uppercase tracking-wide">Role</label>
                 <select
-                  className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-xl text-sm dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
+                  className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-xl text-sm dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition"
                   value={role}
                   onChange={(event) => setRole(event.target.value)}
                 >
@@ -185,7 +185,7 @@ const Admin = () => {
                   {isMaster && <option value="Admin">Admin</option>}
                 </select>
               </div>
-              <button className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm hover:bg-slate-800 flex items-center gap-2">
+              <button className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 flex items-center gap-2 transition shadow-sm">
                 <FontAwesomeIcon icon={faUserPlus} />
                 Buat
               </button>
@@ -195,11 +195,11 @@ const Admin = () => {
 
         <section className="bg-white border border-slate-200 rounded-2xl p-5 dark:bg-[#202225] dark:border-slate-700">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-              <FontAwesomeIcon icon={faUsers} />
+            <div className="flex items-center gap-2 text-lg font-medium text-slate-800 dark:text-slate-100">
+              <FontAwesomeIcon icon={faUsers} className="text-sky-500" />
               Daftar User
             </div>
-            <div className="text-xs text-slate-400 dark:text-slate-400">{users.length} akun</div>
+            <div className="text-xs font-medium text-slate-500/80 dark:text-slate-400/80 uppercase tracking-wider">{users.length} akun</div>
           </div>
           {error && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3 dark:bg-red-950/40 dark:border-red-900/60">

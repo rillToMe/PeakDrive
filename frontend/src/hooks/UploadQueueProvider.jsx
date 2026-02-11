@@ -6,9 +6,12 @@ import { uploadFileWithProgress } from '../services/uploadService.js'
 export const UploadQueueProvider = ({ children }) => {
   const [uploads, setUploads] = useState([])
   const [lastAddedId, setLastAddedId] = useState(null)
-  const configRef = useRef({ folderId: null, onUploaded: null, setError: null, existingFileNames: [] })
+  const configRef = useRef({ folderId: null, onAllUploaded: null, setError: null, existingFileNames: [] })
   const controllersRef = useRef(new Map())
   const clearTimerRef = useRef(null)
+  const activeCountRef = useRef(0)
+  const batchDepthRef = useRef(0)
+  const hasBatchUploadsRef = useRef(false)
 
   const setConfig = useCallback((config) => {
     configRef.current = { ...configRef.current, ...config }
@@ -18,9 +21,31 @@ export const UploadQueueProvider = ({ children }) => {
     setUploads((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
   }, [])
 
+  const triggerRefreshIfReady = useCallback(async () => {
+    if (activeCountRef.current !== 0) return
+    if (batchDepthRef.current !== 0) return
+    if (!hasBatchUploadsRef.current) return
+    hasBatchUploadsRef.current = false
+    const { onAllUploaded, folderId } = configRef.current
+    if (onAllUploaded) {
+      await onAllUploaded(folderId)
+    }
+  }, [])
+
+  const beginBatch = useCallback(() => {
+    batchDepthRef.current += 1
+  }, [])
+
+  const endBatch = useCallback(() => {
+    batchDepthRef.current = Math.max(0, batchDepthRef.current - 1)
+    triggerRefreshIfReady()
+  }, [triggerRefreshIfReady])
+
   const startUpload = useCallback(
-    async (file) => {
+    async (file, overrideFolderId = null) => {
       if (!file) return
+      activeCountRef.current += 1
+      hasBatchUploadsRef.current = true
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const startedAt = Date.now()
       setLastAddedId(id)
@@ -37,14 +62,15 @@ export const UploadQueueProvider = ({ children }) => {
       ])
       const controller = new AbortController()
       controllersRef.current.set(id, controller)
-      const { folderId, onUploaded, setError } = configRef.current
+      const { folderId, setError } = configRef.current
+      const targetFolderId = overrideFolderId ?? folderId
       if (setError) {
         setError('')
       }
       try {
         await uploadFileWithProgress(
           file,
-          folderId,
+          targetFolderId,
           (progress) => {
             const elapsed = (Date.now() - startedAt) / 1000
             const remaining = progress > 0 ? (elapsed * (100 - progress)) / progress : null
@@ -53,9 +79,6 @@ export const UploadQueueProvider = ({ children }) => {
           controller.signal
         )
         updateUpload(id, { progress: 100, status: 'done', finishedAt: Date.now(), estimateSeconds: null })
-        if (onUploaded) {
-          await onUploaded(folderId)
-        }
       } catch (err) {
         const canceled = controller.signal.aborted || err?.code === 'ERR_CANCELED'
         if (canceled) {
@@ -68,9 +91,11 @@ export const UploadQueueProvider = ({ children }) => {
         }
       } finally {
         controllersRef.current.delete(id)
+        activeCountRef.current = Math.max(0, activeCountRef.current - 1)
+        await triggerRefreshIfReady()
       }
     },
-    [updateUpload]
+    [triggerRefreshIfReady, updateUpload]
   )
 
   const cancelUpload = useCallback(
@@ -91,6 +116,7 @@ export const UploadQueueProvider = ({ children }) => {
       const existingNames = new Set(
         (configRef.current.existingFileNames || []).map((name) => name.trim().toLowerCase())
       )
+      beginBatch()
       files.forEach((file) => {
         const uniqueName = getUniqueFileName(file.name, Array.from(existingNames))
         existingNames.add(uniqueName.toLowerCase())
@@ -100,9 +126,10 @@ export const UploadQueueProvider = ({ children }) => {
             : file
         startUpload(finalFile)
       })
+      endBatch()
       event.target.value = ''
     },
-    [startUpload]
+    [beginBatch, endBatch, startUpload]
   )
 
   useEffect(() => {
@@ -135,9 +162,11 @@ export const UploadQueueProvider = ({ children }) => {
       startUpload,
       cancelUpload,
       handleUpload,
-      setConfig
+      setConfig,
+      beginBatch,
+      endBatch
     }),
-    [uploads, lastAddedId, startUpload, cancelUpload, handleUpload, setConfig]
+    [uploads, lastAddedId, startUpload, cancelUpload, handleUpload, setConfig, beginBatch, endBatch]
   )
 
   return <UploadQueueContext.Provider value={value}>{children}</UploadQueueContext.Provider>

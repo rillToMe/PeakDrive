@@ -10,7 +10,10 @@ import {
   faRightFromBracket,
   faUserGear,
   faCircleInfo,
-  faXmark
+  faXmark,
+  faTrash,
+  faList,
+  faBars
 } from '@fortawesome/free-solid-svg-icons'
 import UploadButton from './UploadButton.jsx'
 
@@ -33,11 +36,14 @@ const DriveHeader = ({
   canManage,
   onAdmin,
   onLogout,
+  onTrash,
+  onActivityLog,
   path,
   onBreadcrumb,
   onUpload,
   searchValue,
-  onSearchChange
+  onSearchChange,
+  onToggleSidebar
 }) => {
   const [profileOpen, setProfileOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -118,29 +124,38 @@ const DriveHeader = ({
 
   return (
     <>
-      <header className="bg-gradient-to-r from-sky-50 via-white to-emerald-50 border-b border-slate-200 text-slate-900 dark:from-[#1A1B1D] dark:via-[#1A1B1D] dark:to-[#1A1B1D] dark:border-slate-800 dark:text-slate-100">
-        <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.25em] text-sky-500">PeakDrive</div>
-            <h1 className="text-2xl font-semibold bg-gradient-to-r from-slate-900 to-sky-700 bg-clip-text text-transparent dark:from-slate-100 dark:to-sky-300">
-              Private drive untuk tim
-            </h1>
-            <p className="text-sm text-slate-600 mt-1 dark:text-slate-300">
-              Semua file aman dan terorganisir
-            </p>
+      <header className="bg-gradient-to-r from-sky-100 via-sky-50 to-emerald-100 border-b border-slate-200/60 text-slate-900 dark:bg-gradient-to-r dark:from-sky-950 dark:via-[#1A1B1D] dark:to-emerald-950 dark:border-slate-800 dark:text-slate-100 w-full">
+        <div className="w-full px-6 py-6 md:px-8 md:py-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-3">
+            <button
+              type="button"
+              onClick={() => onToggleSidebar?.()}
+              className="md:hidden h-10 w-10 rounded-full border border-slate-200/70 bg-white text-slate-600 shadow-sm hover:bg-slate-50 flex items-center justify-center dark:border-slate-700 dark:bg-[#202225] dark:text-slate-200 dark:hover:bg-[#2a2c30]"
+            >
+              <FontAwesomeIcon icon={faBars} />
+            </button>
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] font-medium text-sky-500/90">PeakDrive</div>
+              <h1 className="text-2xl font-semibold leading-tight bg-gradient-to-r from-slate-900 to-sky-700 bg-clip-text text-transparent dark:from-slate-100 dark:to-sky-300">
+                Private drive untuk tim
+              </h1>
+              <p className="text-base leading-relaxed text-slate-600 mt-1 dark:text-slate-300">
+                Semua file aman dan terorganisir
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen((value) => !value)}
-                className="flex items-center gap-3 rounded-full border border-slate-200/70 bg-white/90 px-3 py-2 text-sm shadow-sm hover:bg-white dark:border-slate-700 dark:bg-[#202225] dark:hover:bg-[#2a2c30]"
+                className="flex items-center gap-3 rounded-full border border-slate-200/70 bg-white/90 px-3 py-2 text-[0.9rem] shadow-sm hover:bg-white dark:border-slate-700 dark:bg-[#202225] dark:hover:bg-[#2a2c30]"
               >
                 <span className="relative group">
                   <span className="h-8 w-8 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center justify-center">
                     {avatarLetter}
                   </span>
-                  <span className="pointer-events-none absolute left-1/2 top-full mt-2 flex w-max max-w-[280px] -translate-x-1/2 flex-col rounded-xl border border-slate-200 bg-slate-900/90 text-white px-3 py-2 text-xs opacity-0 shadow-lg transition group-hover:opacity-100 z-50 dark:border-slate-700">
-                    <span className="text-[11px] uppercase tracking-wider text-slate-300">Akun</span>
+                  <span className="pointer-events-none absolute left-1/2 top-full mt-2 flex w-max max-w-[280px] -translate-x-1/2 flex-col rounded-xl border border-slate-200 bg-slate-900/90 text-white px-3 py-2 text-[0.78rem] opacity-0 shadow-lg transition group-hover:opacity-100 z-50 dark:border-slate-700">
+                    <span className="text-[0.7rem] uppercase tracking-wider text-slate-300/80">Akun</span>
                     <span className="font-semibold text-white break-all mt-0.5">{user?.email}</span>
                   </span>
                 </span>
@@ -150,17 +165,17 @@ const DriveHeader = ({
                 />
               </button>
               {profileOpen && (
-                <div className="absolute right-0 mt-3 w-72 rounded-2xl border border-slate-200 bg-white shadow-xl p-4 z-20 dark:border-slate-700 dark:bg-[#202225]">
-                  <div className="rounded-2xl bg-gradient-to-br from-sky-50 via-white to-emerald-50 px-4 py-4 text-center dark:from-[#1F2023] dark:via-[#1F2023] dark:to-[#1F2023]">
-                    <div className="text-xs text-slate-500 break-all dark:text-slate-300">{user?.email}</div>
+                <div className="absolute left-0 md:left-auto md:right-0 mt-3 w-72 rounded-2xl border border-slate-200 bg-white shadow-xl p-4 z-20 dark:border-slate-700 dark:bg-[#202225]">
+                  <div className="rounded-2xl bg-gradient-to-br from-sky-50 via-white to-emerald-50 px-4 py-4 text-center dark:bg-gradient-to-br dark:from-sky-950/30 dark:via-[#1F2023] dark:to-emerald-950/30">
+                    <div className="text-[0.78rem] text-slate-500/80 break-all dark:text-slate-300/80">{user?.email}</div>
                     <div className="mx-auto mt-3 h-16 w-16 rounded-full bg-slate-900 text-white text-lg font-semibold flex items-center justify-center">
                       {avatarLetter}
                     </div>
-                    <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <div className="mt-3 text-[0.95rem] font-semibold text-slate-900 dark:text-slate-100">
                       Halo, {displayName}.
                     </div>
                     <div
-                      className={`mt-1 text-xs font-semibold ${
+                      className={`mt-1 text-[0.78rem] font-semibold ${
                         roleLabel === 'MasterAdmin'
                           ? 'text-amber-600'
                           : roleLabel === 'Admin'
@@ -178,10 +193,22 @@ const DriveHeader = ({
                         setProfileOpen(false)
                         onAdmin()
                       }}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 flex items-center gap-2 dark:border-slate-700 dark:bg-[#202225] dark:text-slate-100 dark:hover:bg-[#2a2c30]"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-[0.9rem] font-medium hover:bg-slate-50 flex items-center gap-2 dark:border-slate-700 dark:bg-[#202225] dark:text-slate-100 dark:hover:bg-[#2a2c30]"
                     >
                       <FontAwesomeIcon icon={faUserGear} />
                       Admin Manage
+                    </button>
+                  )}
+                  {canManage && (
+                    <button
+                      onClick={() => {
+                        setProfileOpen(false)
+                        onActivityLog()
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700 text-[0.9rem] hover:bg-slate-50 flex items-center gap-2 mt-3 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-[#2a2c30]"
+                    >
+                      <FontAwesomeIcon icon={faList} />
+                      Activity Log
                     </button>
                   )}
                   <button
@@ -189,7 +216,7 @@ const DriveHeader = ({
                       setProfileOpen(false)
                       setSettingsOpen(true)
                     }}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm hover:bg-slate-50 flex items-center gap-2 mt-3 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-[#2a2c30]"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700 text-[0.9rem] hover:bg-slate-50 flex items-center gap-2 mt-3 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-[#2a2c30]"
                   >
                     <FontAwesomeIcon icon={faGear} />
                     Settings
@@ -199,7 +226,7 @@ const DriveHeader = ({
                       setProfileOpen(false)
                       onLogout()
                     }}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm hover:bg-slate-50 flex items-center gap-2 mt-3 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-[#2a2c30]"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700 text-[0.9rem] hover:bg-slate-50 flex items-center gap-2 mt-3 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-[#2a2c30]"
                   >
                     <FontAwesomeIcon icon={faRightFromBracket} />
                     Logout
@@ -210,8 +237,8 @@ const DriveHeader = ({
           </div>
         </div>
       </header>
-      <section className="bg-white/90 border border-slate-200/80 rounded-2xl p-4 md:p-5 flex flex-col gap-4 lg:flex-row lg:items-center shadow-sm backdrop-blur max-w-6xl mx-auto dark:bg-[#202225] dark:border-slate-800">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
+      <section className="mt-4 bg-white/90 border border-slate-200/80 rounded-2xl p-4 md:p-5 flex flex-col gap-4 lg:flex-row lg:items-center shadow-sm backdrop-blur w-full dark:bg-[#202225] dark:border-slate-800">
+        <div className="flex flex-wrap items-center gap-2 text-[0.95rem]">
           <button
             onClick={() => onBreadcrumb(-1)}
             className="flex items-center gap-2 text-sky-700 hover:text-sky-800 bg-sky-50 px-3 py-1.5 rounded-full dark:bg-slate-800/80 dark:text-sky-300 dark:hover:text-sky-200"
@@ -239,9 +266,16 @@ const DriveHeader = ({
               value={searchValue}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder="Cari folder atau file..."
-              className="w-full rounded-full border border-slate-200 bg-white px-9 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100 dark:focus:border-sky-400 dark:focus:ring-sky-700/40"
+              className="w-full rounded-full border border-slate-200 bg-white px-9 py-2 text-[0.9rem] text-slate-700 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100 dark:focus:border-sky-400 dark:focus:ring-sky-700/40"
             />
           </div>
+          <button
+            onClick={onTrash}
+            className="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-600 text-[0.9rem] hover:bg-slate-50 flex items-center gap-2 shadow-sm dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100 dark:hover:bg-[#2a2c30]"
+          >
+            <FontAwesomeIcon icon={faTrash} />
+            Trash
+          </button>
           <UploadButton onUpload={onUpload} />
         </div>
       </section>
@@ -256,11 +290,11 @@ const DriveHeader = ({
           >
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-xs uppercase tracking-[0.25em] text-sky-500">Settings</div>
-                <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <div className="text-[0.75rem] uppercase tracking-[0.25em] text-sky-500">Settings</div>
+                <div className="text-[1.25rem] font-semibold text-slate-900 dark:text-slate-100">
                   Pengaturan Drive
                 </div>
-                <div className="text-sm text-slate-500 dark:text-slate-300">
+                <div className="text-[0.9rem] text-slate-500 dark:text-slate-300">
                   Atur tampilan dan lisensi aplikasi.
                 </div>
               </div>
@@ -273,7 +307,7 @@ const DriveHeader = ({
             </div>
 
             <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-[#1F2023]">
-              <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+              <div className="flex items-center gap-2 text-[0.95rem] font-medium text-slate-700 dark:text-slate-200">
                 <FontAwesomeIcon icon={faPalette} className="text-sky-500" />
                 Mode Tampilan
               </div>
@@ -285,7 +319,7 @@ const DriveHeader = ({
                 ].map((option) => (
                   <label
                     key={option.value}
-                    className={`flex items-start gap-3 rounded-2xl border px-3 py-3 text-sm transition ${
+                    className={`flex items-start gap-3 rounded-2xl border px-3 py-3 text-[0.9rem] transition ${
                       theme === option.value
                         ? 'border-sky-300 bg-sky-50 text-slate-900 dark:border-sky-600 dark:bg-[#232428] dark:text-slate-100'
                         : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-[#202225] dark:text-slate-200'
@@ -301,7 +335,7 @@ const DriveHeader = ({
                     />
                     <div>
                       <div className="font-semibold">{option.label}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{option.desc}</div>
+                      <div className="text-[0.78rem] text-slate-500/80 dark:text-slate-400/80">{option.desc}</div>
                     </div>
                   </label>
                 ))}
@@ -309,14 +343,14 @@ const DriveHeader = ({
             </section>
 
             <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-[#202225]">
-              <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+              <div className="flex items-center gap-2 text-[0.95rem] font-medium text-slate-700 dark:text-slate-200">
                 <FontAwesomeIcon icon={faGear} className="text-emerald-500" />
                 Experimental
               </div>
-              <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-200">
+              <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[0.9rem] text-slate-700 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-200">
                 <div>
                   <div className="font-semibold">Bintang Jatuh</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <div className="text-[0.78rem] text-slate-500/80 dark:text-slate-400/80">
                     Muncul sesekali saat dark mode aktif.
                   </div>
                 </div>
@@ -339,11 +373,11 @@ const DriveHeader = ({
             </section>
 
             <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-[#202225]">
-              <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+              <div className="flex items-center gap-2 text-[0.95rem] font-medium text-slate-700 dark:text-slate-200">
                 <FontAwesomeIcon icon={faCircleInfo} className="text-sky-500" />
                 About Licence
               </div>
-              <div className="mt-3 grid gap-3 text-sm text-slate-600 dark:text-slate-300">
+              <div className="mt-3 grid gap-3 text-[0.9rem] text-slate-600 dark:text-slate-300">
                 <div>
                   <div className="font-semibold text-slate-800 dark:text-slate-100">Pemilik Lisensi</div>
                   <div>Ditdev</div>

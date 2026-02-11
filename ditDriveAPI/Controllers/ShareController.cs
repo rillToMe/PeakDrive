@@ -17,7 +17,7 @@ public class ShareController(AppDbContext db, IConfiguration configuration, IWeb
     public IActionResult CreateShare(string publicId)
     {
         var userId = GetUserId();
-        var file = _db.Files.FirstOrDefault(f => f.PublicId == publicId && f.UserId == userId);
+        var file = _db.Files.FirstOrDefault(f => f.PublicId == publicId && f.UserId == userId && f.DeletedAt == null);
         if (file == null)
         {
             return NotFound();
@@ -33,6 +33,7 @@ public class ShareController(AppDbContext db, IConfiguration configuration, IWeb
 
         _db.Shares.Add(share);
         _db.SaveChanges();
+        LogActivity(userId, "share-file", "success", $"Shared {file.Filename}");
 
         return Ok(new { token, url = BuildShareUrl(token, "file") });
     }
@@ -42,7 +43,7 @@ public class ShareController(AppDbContext db, IConfiguration configuration, IWeb
     public IActionResult CreateFolderShare(string publicId)
     {
         var userId = GetUserId();
-        var folder = _db.Folders.FirstOrDefault(f => f.PublicId == publicId && f.UserId == userId);
+        var folder = _db.Folders.FirstOrDefault(f => f.PublicId == publicId && f.UserId == userId && f.DeletedAt == null);
         if (folder == null)
         {
             return NotFound();
@@ -58,6 +59,7 @@ public class ShareController(AppDbContext db, IConfiguration configuration, IWeb
 
         _db.Shares.Add(share);
         _db.SaveChanges();
+        LogActivity(userId, "share-folder", "success", $"Shared {folder.Name}");
 
         return Ok(new { token, url = BuildShareUrl(token, "folder") });
     }
@@ -74,7 +76,7 @@ public class ShareController(AppDbContext db, IConfiguration configuration, IWeb
         }
 
         var file = _db.Files.FirstOrDefault(f => f.Id == share.FileId.Value);
-        if (file == null)
+        if (file == null || file.DeletedAt != null)
         {
             return NotFound();
         }
@@ -108,7 +110,7 @@ public class ShareController(AppDbContext db, IConfiguration configuration, IWeb
         }
 
         var folder = _db.Folders.FirstOrDefault(f => f.Id == share.FolderId.Value);
-        if (folder == null)
+        if (folder == null || folder.DeletedAt != null)
         {
             return NotFound();
         }
@@ -147,12 +149,31 @@ public class ShareController(AppDbContext db, IConfiguration configuration, IWeb
         return int.TryParse(idValue, out var id) ? id : 0;
     }
 
+    private void LogActivity(int? userId, string action, string status, string message)
+    {
+        try
+        {
+            _db.ActivityLogs.Add(new ActivityLog
+            {
+                UserId = userId,
+                Action = action,
+                Status = status,
+                Message = message,
+                CreatedAt = DateTime.UtcNow
+            });
+            _db.SaveChanges();
+        }
+        catch
+        {
+        }
+    }
+
     private void AddFolderToZip(ZipArchive archive, DriveFolder folder, int userId, string currentPath)
     {
         archive.CreateEntry($"{currentPath}/");
 
         var files = _db.Files
-            .Where(f => f.UserId == userId && f.FolderId == folder.Id)
+            .Where(f => f.UserId == userId && f.FolderId == folder.Id && f.DeletedAt == null)
             .OrderBy(f => f.Filename)
             .ToList();
 
@@ -172,7 +193,7 @@ public class ShareController(AppDbContext db, IConfiguration configuration, IWeb
         }
 
         var children = _db.Folders
-            .Where(f => f.UserId == userId && f.ParentId == folder.Id)
+            .Where(f => f.UserId == userId && f.ParentId == folder.Id && f.DeletedAt == null)
             .OrderBy(f => f.Name)
             .ToList();
 

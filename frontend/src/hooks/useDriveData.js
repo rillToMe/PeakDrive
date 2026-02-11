@@ -30,6 +30,7 @@ const useDriveData = () => {
   const [previewVisible, setPreviewVisible] = useState(false)
   const [previewOpenAt, setPreviewOpenAt] = useState(0)
   const [visibleFiles, setVisibleFiles] = useState([])
+  const [selectedItems, setSelectedItems] = useState({ files: [], folders: [] })
 
   const isMobile = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -57,6 +58,7 @@ const useDriveData = () => {
     async (id) => {
       setLoading(true)
       setError('')
+      setSelectedItems({ files: [], folders: [] })
       try {
         const data = await getFolder(id)
         setFolders(data.folders || [])
@@ -304,6 +306,7 @@ const useDriveData = () => {
     previewOpenAt,
     isMobile,
     setError,
+    setLoading,
     setFolderId,
     setSelectedFolderId,
     setEditingFolderId,
@@ -318,7 +321,9 @@ const useDriveData = () => {
     handleDownloadFolder,
     openPreview,
     openPreviewById,
-    closePreview
+    closePreview,
+    selectedItems,
+    setSelectedItems
   }
 }
 

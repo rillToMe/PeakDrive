@@ -8,6 +8,19 @@ export const getModelExtension = (filename) => {
 
 export const isModel = (filename) => Boolean(getModelExtension(filename))
 
+export const formatBytes = (bytes) => {
+  if (!bytes || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let unitIndex = 0
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+  const decimals = value >= 10 || unitIndex === 0 ? 0 : 1
+  return `${value.toFixed(decimals)} ${units[unitIndex]}`
+}
+
 const normalizeName = (value) => value.trim().toLowerCase()
 
 const stripIndexSuffix = (value) => {

@@ -29,7 +29,7 @@ const ActionMenu = ({
             <button
               key={item.label}
               onClick={item.onClick}
-              className={`w-full px-2 py-2 rounded-lg hover:bg-slate-100 flex items-center gap-2 dark:hover:bg-[#2a2c30] ${item.tone}`}
+              className={`w-full px-2.5 py-2 rounded-lg hover:bg-slate-100 flex items-center gap-2.5 font-medium transition dark:hover:bg-[#2a2c30] ${item.tone}`}
             >
               <FontAwesomeIcon icon={item.icon} className={item.iconClassName} />
               {item.label}

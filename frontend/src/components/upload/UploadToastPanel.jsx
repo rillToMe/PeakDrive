@@ -25,7 +25,7 @@ const UploadToastPanel = () => {
     <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 z-50">
       <div className="w-full sm:w-[360px] bg-white border border-slate-200 rounded-2xl shadow-2xl dark:bg-[#202225] dark:border-slate-700">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
-          <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{headerText}</div>
+          <div className="text-[0.9375rem] font-semibold text-slate-800 dark:text-slate-100 leading-none">{headerText}</div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCollapsed((prev) => !prev)}

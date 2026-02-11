@@ -8,7 +8,9 @@ const emptyContext = {
   startUpload: () => {},
   cancelUpload: () => {},
   handleUpload: () => {},
-  setConfig: () => {}
+  setConfig: () => {},
+  beginBatch: () => {},
+  endBatch: () => {}
 }
 
 const useUploadQueue = () => {

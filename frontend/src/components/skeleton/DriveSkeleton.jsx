@@ -8,7 +8,7 @@ const DriveSkeleton = () => {
           <SkeletonBlock className="h-4 w-24 rounded-full" />
           <SkeletonBlock className="h-3 w-16 rounded-full" />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={`folder-skel-${index}`}
@@ -25,7 +25,7 @@ const DriveSkeleton = () => {
           <SkeletonBlock className="h-4 w-20 rounded-full" />
           <SkeletonBlock className="h-3 w-16 rounded-full" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
           {Array.from({ length: 6 }).map((_, index) => (
             <div
               key={`file-skel-${index}`}

@@ -8,6 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<DriveFolder> Folders => Set<DriveFolder>();
     public DbSet<DriveFile> Files => Set<DriveFile>();
     public DbSet<ShareLink> Shares => Set<ShareLink>();
+    public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +59,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasForeignKey(e => e.FolderId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<ActivityLog>(entity =>
+        {
+            entity.ToTable("ActivityLogs");
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.UserId);
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
     }
 }
 
@@ -88,6 +100,7 @@ public class DriveFolder
     public string Name { get; set; } = "";
     public int? ParentId { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
 
     public User User { get; set; } = null!;
     public DriveFolder? Parent { get; set; }
@@ -107,6 +120,7 @@ public class DriveFile
     public string FileType { get; set; } = "";
     public long Size { get; set; }
     public DateTime UploadedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
 
     public User User { get; set; } = null!;
     public DriveFolder? Folder { get; set; }
@@ -123,4 +137,16 @@ public class ShareLink
 
     public DriveFile? File { get; set; }
     public DriveFolder? Folder { get; set; }
+}
+
+public class ActivityLog
+{
+    public int Id { get; set; }
+    public int? UserId { get; set; }
+    public string Action { get; set; } = "";
+    public string Status { get; set; } = "";
+    public string Message { get; set; } = "";
+    public DateTime CreatedAt { get; set; }
+
+    public User? User { get; set; }
 }
