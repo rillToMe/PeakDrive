@@ -367,6 +367,51 @@ public class TrashController(AppDbContext db, IConfiguration configuration, IWeb
         return NoContent();
     }
 
+    [HttpDelete("clean")]
+    public IActionResult CleanTrash()
+    {
+        var userId = GetUserId();
+        var deletedFolders = _db.Folders
+            .Where(f => f.UserId == userId && f.DeletedAt != null)
+            .ToList();
+        var deletedFolderIds = deletedFolders.Select(f => f.Id).ToHashSet();
+        var rootFolders = deletedFolders
+            .Where(f => f.ParentId == null || !deletedFolderIds.Contains(f.ParentId.Value))
+            .ToList();
+
+        try
+        {
+            foreach (var folder in rootFolders)
+            {
+                DeleteFolderTree(folder, userId);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            return BadRequest("Invalid storage path.");
+        }
+
+        var filesToDelete = _db.Files
+            .Where(f => f.UserId == userId && f.DeletedAt != null)
+            .Where(f => f.FolderId == null || !deletedFolderIds.Contains(f.FolderId.Value))
+            .ToList();
+        foreach (var file in filesToDelete)
+        {
+            if (!TryBuildFilePath(file, out var fullPath))
+            {
+                return BadRequest("Invalid storage path.");
+            }
+            if (System.IO.File.Exists(fullPath))
+            {
+                System.IO.File.Delete(fullPath);
+            }
+        }
+        _db.Files.RemoveRange(filesToDelete);
+        _db.SaveChanges();
+        LogActivity(userId, "clean-trash", "success", $"Cleaned {deletedFolders.Count} folders and {filesToDelete.Count} files");
+        return Ok(new { cleanedAt = DateTime.UtcNow, removedFolders = deletedFolders.Count, removedFiles = filesToDelete.Count });
+    }
+
     [Authorize(Policy = "AdminOnly")]
     [HttpPost("clean")]
     public IActionResult CleanTrash([FromQuery] int? days)
@@ -450,6 +495,25 @@ public class TrashController(AppDbContext db, IConfiguration configuration, IWeb
             }
         }
         _db.Files.RemoveRange(filesToDelete);
+    }
+
+    private void LogActivity(int? userId, string action, string status, string message)
+    {
+        try
+        {
+            _db.ActivityLogs.Add(new ActivityLog
+            {
+                UserId = userId,
+                Action = action,
+                Status = status,
+                Message = message,
+                CreatedAt = DateTime.UtcNow
+            });
+            _db.SaveChanges();
+        }
+        catch
+        {
+        }
     }
 
     private int GetUserId()

@@ -6,6 +6,7 @@ import ShareView from './pages/ShareView.jsx'
 import Admin from './pages/Admin.jsx'
 import { UploadQueueProvider } from './hooks/UploadQueueProvider.jsx'
 import UploadToastPanel from './components/upload/UploadToastPanel.jsx'
+import DuplicateUploadConfirmProvider from './components/ui/DuplicateUploadConfirmProvider.jsx'
 
 const hasToken = () => Boolean(localStorage.getItem('token'))
 const THEME_KEY = 'peakdrive-theme'
@@ -61,55 +62,57 @@ function App() {
   }, [])
 
   return (
-    <UploadQueueProvider>
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <PublicOnlyRoute>
-              <Login />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/drive"
-          element={
-            <ProtectedRoute>
-              <Drive />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/drive/folders/:folderPublicId"
-          element={
-            <ProtectedRoute>
-              <Drive />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/drive/files/:filePublicId"
-          element={
-            <ProtectedRoute>
-              <Drive />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute>
-              <Admin />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/s/file/:token" element={<ShareView />} />
-        <Route path="/s/folder/:token" element={<ShareView />} />
-        <Route path="/s/:token" element={<ShareView />} />
-        <Route path="*" element={<Navigate to="/drive" replace />} />
-      </Routes>
-      <UploadToastPanel />
-    </UploadQueueProvider>
+    <DuplicateUploadConfirmProvider>
+      <UploadQueueProvider>
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <Login />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/drive"
+            element={
+              <ProtectedRoute>
+                <Drive />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/drive/folders/:folderPublicId"
+            element={
+              <ProtectedRoute>
+                <Drive />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/drive/files/:filePublicId"
+            element={
+              <ProtectedRoute>
+                <Drive />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/s/file/:token" element={<ShareView />} />
+          <Route path="/s/folder/:token" element={<ShareView />} />
+          <Route path="/s/:token" element={<ShareView />} />
+          <Route path="*" element={<Navigate to="/drive" replace />} />
+        </Routes>
+        <UploadToastPanel />
+      </UploadQueueProvider>
+    </DuplicateUploadConfirmProvider>
   )
 }
 

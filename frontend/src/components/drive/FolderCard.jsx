@@ -42,7 +42,7 @@ const FolderCard = ({
           onOpen()
         }
       }}
-      onDoubleClick={(e) => {
+      onDoubleClick={() => {
         if (editing) return
         if (selectionMode) return
         if (isMobile) return

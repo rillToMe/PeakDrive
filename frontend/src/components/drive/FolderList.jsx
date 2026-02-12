@@ -113,7 +113,7 @@ const FolderList = ({
             }}
             copied={copiedFolderId === folder.publicId}
             onDropUpload={(entries, supportsFolders) =>
-              onDropUpload(folder, entries, supportsFolders)
+              onDropUpload(folder.publicId, entries, supportsFolders)
             }
             multiSelected={selectedItems.folders.includes(folder.publicId)}
             onToggleSelect={() => handleToggleSelect(folder.publicId)}

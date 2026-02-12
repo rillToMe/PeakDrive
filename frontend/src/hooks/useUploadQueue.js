@@ -8,6 +8,7 @@ const emptyContext = {
   startUpload: () => {},
   cancelUpload: () => {},
   handleUpload: () => {},
+  handleDropUpload: () => {},
   setConfig: () => {},
   beginBatch: () => {},
   endBatch: () => {}

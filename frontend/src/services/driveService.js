@@ -111,9 +111,8 @@ export const deleteTrashFolderPermanently = async (publicId) => {
   await apiFetch(`/api/trash/folder/${publicId}`, { method: 'DELETE' })
 }
 
-export const cleanTrash = async (days) => {
-  const target = Number.isFinite(days) ? `/api/trash/clean?days=${days}` : '/api/trash/clean'
-  const response = await apiFetch(target, { method: 'POST' })
+export const cleanTrash = async () => {
+  const response = await apiFetch('/api/trash/clean', { method: 'DELETE' })
   return response.json()
 }
 

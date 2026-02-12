@@ -1,17 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { UploadQueueContext } from './useUploadQueue.js'
 import { getUniqueFileName } from '../services/driveUtils.js'
+import { checkFolderExists, createFolder } from '../services/driveService.js'
 import { uploadFileWithProgress } from '../services/uploadService.js'
+import { useDuplicateUploadConfirm } from '../components/ui/duplicateUploadConfirmContext.js'
 
 export const UploadQueueProvider = ({ children }) => {
   const [uploads, setUploads] = useState([])
   const [lastAddedId, setLastAddedId] = useState(null)
-  const configRef = useRef({ folderId: null, onAllUploaded: null, setError: null, existingFileNames: [] })
+  const configRef = useRef({
+    folderId: null,
+    onAllUploaded: null,
+    setError: null,
+    setUploadNotice: null,
+    existingFileNames: [],
+    existingFolderNames: []
+  })
   const controllersRef = useRef(new Map())
   const clearTimerRef = useRef(null)
   const activeCountRef = useRef(0)
   const batchDepthRef = useRef(0)
   const hasBatchUploadsRef = useRef(false)
+  const { confirmDuplicateUpload } = useDuplicateUploadConfirm()
 
   const setConfig = useCallback((config) => {
     configRef.current = { ...configRef.current, ...config }
@@ -110,26 +120,162 @@ export const UploadQueueProvider = ({ children }) => {
   )
 
   const handleUpload = useCallback(
-    (event) => {
-      const files = Array.from(event.target.files || [])
+    async (event) => {
+      const target = event.target
+      const files = Array.from(target.files || [])
       if (files.length === 0) return
       const existingNames = new Set(
         (configRef.current.existingFileNames || []).map((name) => name.trim().toLowerCase())
       )
       beginBatch()
-      files.forEach((file) => {
-        const uniqueName = getUniqueFileName(file.name, Array.from(existingNames))
-        existingNames.add(uniqueName.toLowerCase())
+      try {
+        for (const file of files) {
+          const uniqueName = getUniqueFileName(file.name, Array.from(existingNames))
+          if (uniqueName !== file.name) {
+            const confirmed = await confirmDuplicateUpload({
+              type: 'file',
+              name: file.name,
+              suggestedName: uniqueName
+            })
+            if (!confirmed) {
+              continue
+            }
+          }
+          existingNames.add(uniqueName.toLowerCase())
+          const finalFile =
+            uniqueName !== file.name
+              ? new File([file], uniqueName, { type: file.type, lastModified: file.lastModified })
+              : file
+          startUpload(finalFile)
+        }
+      } finally {
+        endBatch()
+        target.value = ''
+      }
+    },
+    [beginBatch, confirmDuplicateUpload, endBatch, startUpload]
+  )
+
+  const handleDropUpload = useCallback(
+    async ({ targetFolderId, entries, supportsFolders }) => {
+      const { setError, setUploadNotice, existingFileNames, existingFolderNames } = configRef.current
+      if (!supportsFolders && setError) {
+        setError('Folder drag & drop tidak didukung di browser ini.')
+      }
+      if (!entries || entries.length === 0) return
+
+      const normalize = (value) => value.trim().toLowerCase()
+      const folderCache = new WeakMap()
+      const fileNamePools = new Map()
+      const folderNamePools = new Map()
+
+      const targetFilePool = new Set((existingFileNames || []).map((name) => normalize(name)))
+      fileNamePools.set(targetFolderId, targetFilePool)
+
+      const targetFolderPool = new Set((existingFolderNames || []).map((name) => normalize(name)))
+      folderNamePools.set(targetFolderId, targetFolderPool)
+
+      const getFilePool = (parentId) => {
+        const existing = fileNamePools.get(parentId)
+        if (existing) return existing
+        const next = new Set()
+        fileNamePools.set(parentId, next)
+        return next
+      }
+
+      const getFolderPool = (parentId) => {
+        const existing = folderNamePools.get(parentId)
+        if (existing) return existing
+        const next = new Set()
+        folderNamePools.set(parentId, next)
+        return next
+      }
+
+      const resolveUniqueFolderName = async (name, parentId) => {
+        const pool = getFolderPool(parentId)
+        const safeName = name?.trim() || 'New Folder'
+        let index = 0
+        let candidate = safeName
+        const parentPublicId = parentId === 'root' ? null : parentId
+        while (true) {
+          if (pool.has(normalize(candidate))) {
+            index += 1
+            candidate = `${safeName} (${index})`
+            continue
+          }
+          const { exists } = await checkFolderExists(candidate, parentPublicId)
+          if (!exists) break
+          index += 1
+          candidate = `${safeName} (${index})`
+        }
+        if (candidate !== safeName) {
+          const confirmed = await confirmDuplicateUpload({
+            type: 'folder',
+            name: safeName,
+            suggestedName: candidate
+          })
+          if (!confirmed) {
+            return null
+          }
+        }
+        pool.add(normalize(candidate))
+        return candidate
+      }
+
+      const ensureFolder = async (entry, parentId) => {
+        const cached = folderCache.get(entry)
+        if (cached) return cached
+        const finalName = await resolveUniqueFolderName(entry.name, parentId)
+        if (!finalName) return null
+        const created = await createFolder(finalName, parentId === 'root' ? null : parentId)
+        folderCache.set(entry, created.publicId)
+        return created.publicId
+      }
+
+      const uploadFileEntry = async (file, parentId, nameOverride) => {
+        if (!file) return
+        const pool = getFilePool(parentId)
+        const name = nameOverride || file.name
+        const uniqueName = getUniqueFileName(name, Array.from(pool))
+        if (uniqueName !== name) {
+          const confirmed = await confirmDuplicateUpload({
+            type: 'file',
+            name,
+            suggestedName: uniqueName
+          })
+          if (!confirmed) return
+        }
+        pool.add(uniqueName.toLowerCase())
         const finalFile =
           uniqueName !== file.name
             ? new File([file], uniqueName, { type: file.type, lastModified: file.lastModified })
             : file
-        startUpload(finalFile)
-      })
-      endBatch()
-      event.target.value = ''
+        startUpload(finalFile, parentId)
+      }
+
+      const uploadEntry = async (entry, parentId) => {
+        if (entry.type === 'file') {
+          await uploadFileEntry(entry.file, parentId, entry.name)
+          return
+        }
+        if (entry.type === 'folder') {
+          if (setUploadNotice) {
+            setUploadNotice(`Mengupload folder: ${entry.name}`)
+          }
+          const folderId = await ensureFolder(entry, parentId)
+          if (!folderId) return
+          await Promise.all((entry.children || []).map((child) => uploadEntry(child, folderId)))
+        }
+      }
+
+      beginBatch()
+      try {
+        await Promise.all(entries.map((entry) => uploadEntry(entry, targetFolderId)))
+      } finally {
+        endBatch()
+      }
     },
-    [beginBatch, endBatch, startUpload]
+    [beginBatch, confirmDuplicateUpload, endBatch, startUpload]
   )
 
   useEffect(() => {
@@ -162,11 +308,22 @@ export const UploadQueueProvider = ({ children }) => {
       startUpload,
       cancelUpload,
       handleUpload,
+      handleDropUpload,
       setConfig,
       beginBatch,
       endBatch
     }),
-    [uploads, lastAddedId, startUpload, cancelUpload, handleUpload, setConfig, beginBatch, endBatch]
+    [
+      uploads,
+      lastAddedId,
+      startUpload,
+      cancelUpload,
+      handleUpload,
+      handleDropUpload,
+      setConfig,
+      beginBatch,
+      endBatch
+    ]
   )
 
   return <UploadQueueContext.Provider value={value}>{children}</UploadQueueContext.Provider>

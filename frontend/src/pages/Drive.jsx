@@ -3,13 +3,11 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faShareNodes, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { getUser, setToken, setUser } from '../lib/api.js'
-import { formatBytes, getUniqueFileName, isModel } from '../services/driveUtils.js'
+import { formatBytes, isModel } from '../services/driveUtils.js'
 import {
   cleanTrash,
-  createFolder,
-  checkFolderExists,
-    deleteFile,
-    deleteFolder,
+  deleteFile,
+  deleteFolder,
   deleteTrashFilePermanently,
   deleteTrashFolderPermanently,
   getActivityLogs,
@@ -27,7 +25,6 @@ import FolderList from '../components/drive/FolderList.jsx'
 import FileList from '../components/drive/FileList.jsx'
 import DriveSidebar from '../components/drive/DriveSidebar.jsx'
 import PreviewModal from '../components/PreviewModal.jsx'
-import FolderExistsModal from '../components/drive/FolderExistsModal.jsx'
 import MultiSelectActionBar from '../components/drive/MultiSelectActionBar.jsx'
 import DriveSkeleton from '../components/skeleton/DriveSkeleton.jsx'
 import readDroppedEntries from '../utils/readDroppedEntries.js'
@@ -50,15 +47,20 @@ const Drive = () => {
   const [trashError, setTrashError] = useState('')
   const [trashFiles, setTrashFiles] = useState([])
   const [trashFolders, setTrashFolders] = useState([])
-  const [cleanDays, setCleanDays] = useState(30)
+  const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
+  const [trashCleaning, setTrashCleaning] = useState(false)
+  const [trashToast, setTrashToast] = useState(null)
   const [logsOpen, setLogsOpen] = useState(false)
   const [logsLoading, setLogsLoading] = useState(false)
   const [logsError, setLogsError] = useState('')
   const [logs, setLogs] = useState([])
-  const [logsTake, setLogsTake] = useState(200)
+  const [logsPage, setLogsPage] = useState(1)
+  const [logsUserFilter, setLogsUserFilter] = useState('')
+  const [logsSort, setLogsSort] = useState('newest')
+  const [logsTypeFilter, setLogsTypeFilter] = useState('all')
+  const [logsActionFilter, setLogsActionFilter] = useState('all')
   const [uploadNotice, setUploadNotice] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [folderExistsModal, setFolderExistsModal] = useState({ open: false, folderName: '', onContinue: null })
 
   const drive = useDriveData()
   const {
@@ -102,9 +104,11 @@ const Drive = () => {
       folderId,
       onAllUploaded: loadFolder,
       setError,
-      existingFileNames: files.map((file) => file.filename || file.originalName || file.name || '')
+      setUploadNotice,
+      existingFileNames: files.map((file) => file.filename || file.originalName || file.name || ''),
+      existingFolderNames: folders.map((folder) => folder.name || '')
     })
-  }, [uploadQueue, folderId, loadFolder, setError, files])
+  }, [uploadQueue, folderId, loadFolder, setError, setUploadNotice, files, folders])
 
   useEffect(() => {
     if (!error) return
@@ -116,6 +120,11 @@ const Drive = () => {
     const timer = setTimeout(() => setUploadNotice(''), 3000)
     return () => clearTimeout(timer)
   }, [uploadNotice])
+  useEffect(() => {
+    if (!trashToast) return
+    const timer = setTimeout(() => setTrashToast(null), 3000)
+    return () => clearTimeout(timer)
+  }, [trashToast])
   const share = useShare(setError)
 
   useEffect(() => {
@@ -249,7 +258,6 @@ const Drive = () => {
     setLoading(true)
     setError('')
     try {
-      // Loop delete for now as requested to not change API
       for (const fId of selectedItems.folders) {
         await deleteFolder(fId)
       }
@@ -266,10 +274,8 @@ const Drive = () => {
     }
   }
 
-  const isSelectionActive = selectedItems.files.length > 0 || selectedItems.folders.length > 0
-
-  const navigateWithSearch = (path) => {
-    navigate(`${path}${location.search || ''}`)
+  const navigateWithSearch = (pathValue) => {
+    navigate(`${pathValue}${location.search || ''}`)
   }
 
   const handleOpenFolder = (folder) => {
@@ -366,29 +372,126 @@ const Drive = () => {
     }
   }
 
-  const handleCleanTrash = async () => {
+  const handleCleanTrash = () => {
+    if (trashCleaning) return
+    setTrashConfirmOpen(true)
+  }
+
+  const handleConfirmCleanTrash = async () => {
     setTrashError('')
+    setTrashToast(null)
+    setTrashConfirmOpen(false)
+    setTrashCleaning(true)
     try {
-      // Retention-based cleanup: bersihkan item lebih tua dari cleanDays
-      await cleanTrash(Number(cleanDays) || 30)
-      await loadTrash()
+      await cleanTrash()
+      setTrashFiles([])
+      setTrashFolders([])
+      setTrashToast({ type: 'success', message: 'Trash berhasil dibersihkan' })
     } catch (err) {
-      setTrashError(err.message || 'Gagal membersihkan trash.')
+      setTrashToast({ type: 'error', message: err.message || 'Gagal membersihkan trash.' })
+    } finally {
+      setTrashCleaning(false)
     }
   }
+
+  const logsPerPage = 100
+  const canNextPage = logs.length >= logsPage * logsPerPage
+  const canPrevPage = logsPage > 1
+  const logPageButtons = useMemo(() => {
+    const items = [{ type: 'page', value: 1, key: 'page-1' }]
+    if (logsPage > 2) {
+      items.push({ type: 'ellipsis', key: 'ellipsis-left' })
+    }
+    if (logsPage > 1) {
+      items.push({ type: 'page', value: logsPage, key: `page-${logsPage}` })
+    }
+    if (canNextPage) {
+      if (logsPage >= 2) {
+        items.push({ type: 'ellipsis', key: 'ellipsis-right' })
+      }
+      items.push({ type: 'page', value: logsPage + 1, key: `page-${logsPage + 1}` })
+    }
+    return items
+  }, [logsPage, canNextPage])
+
+  const filteredLogs = useMemo(() => {
+    const normalizedUser = logsUserFilter.trim().toLowerCase()
+    const is3d = (name) => /\.(glb|gltf|fbx|obj|stl|ply|dae)$/i.test(name)
+    const isText = (name) => /\.(txt|md|csv|json|log|xml|yaml|yml)$/i.test(name)
+    const getFileNameFromMessage = (message) => {
+      if (!message) return ''
+      const match = message.match(/([\w\-.]+\.(?:glb|gltf|fbx|obj|stl|ply|dae|txt|md|csv|json|log|xml|yaml|yml|png|jpg|jpeg|gif|pdf|docx?|xlsx?|pptx?|zip|rar|7z))/i)
+      return match ? match[1] : message
+    }
+    const matchesType = (log) => {
+      if (logsTypeFilter === 'all') return true
+      const filename = getFileNameFromMessage(log.message)
+      if (!filename) return logsTypeFilter === 'other'
+      if (logsTypeFilter === '3d') return is3d(filename)
+      if (logsTypeFilter === 'text') return isText(filename)
+      if (logsTypeFilter === 'other') return !is3d(filename) && !isText(filename)
+      return true
+    }
+    const matchesAction = (log) => {
+      if (logsActionFilter === 'all') return true
+      const action = String(log.action || '').toLowerCase()
+      if (logsActionFilter === 'delete') {
+        return action.includes('delete') || action.includes('trash') || action.includes('clean')
+      }
+      if (logsActionFilter === 'upload') return action.includes('upload')
+      if (logsActionFilter === 'share') return action.includes('share')
+      if (logsActionFilter === 'create') return action.includes('create')
+      if (logsActionFilter === 'other') {
+        return !action.includes('delete') && !action.includes('trash') && !action.includes('clean') &&
+          !action.includes('upload') && !action.includes('share') && !action.includes('create')
+      }
+      return true
+    }
+    const result = logs.filter((log) => {
+      if (normalizedUser && !String(log.userEmail || '').toLowerCase().includes(normalizedUser)) {
+        return false
+      }
+      if (!matchesType(log)) return false
+      if (!matchesAction(log)) return false
+      return true
+    })
+    const sorted = [...result]
+    sorted.sort((a, b) => {
+      if (logsSort === 'oldest') {
+        return new Date(a.createdAt) - new Date(b.createdAt)
+      }
+      return new Date(b.createdAt) - new Date(a.createdAt)
+    })
+    return sorted
+  }, [logs, logsUserFilter, logsSort, logsTypeFilter, logsActionFilter])
+
+  const pagedLogs = useMemo(() => {
+    const start = (logsPage - 1) * logsPerPage
+    return filteredLogs.slice(start, start + logsPerPage)
+  }, [filteredLogs, logsPage])
+
+  useEffect(() => {
+    if (logsLoading) return
+    if (logsPage <= 1) return
+    const minCount = (logsPage - 1) * logsPerPage
+    if (filteredLogs.length < minCount) {
+      const lastPage = Math.max(1, Math.ceil(filteredLogs.length / logsPerPage))
+      setLogsPage(lastPage)
+    }
+  }, [logsLoading, logsPage, filteredLogs.length])
 
   const loadActivityLogs = useCallback(async () => {
     setLogsLoading(true)
     setLogsError('')
     try {
-      const data = await getActivityLogs(Number(logsTake) || 200)
+      const data = await getActivityLogs(logsPage * logsPerPage)
       setLogs(Array.isArray(data) ? data : [])
     } catch (err) {
       setLogsError(err.message || 'Gagal memuat activity log.')
     } finally {
       setLogsLoading(false)
     }
-  }, [logsTake])
+  }, [logsPage])
 
   useEffect(() => {
     if (!logsOpen) return
@@ -396,145 +499,17 @@ const Drive = () => {
     loadActivityLogs()
   }, [logsOpen, canManage, loadActivityLogs])
 
-  const handleDropUpload = async (targetFolderId, droppedEntries, supportsFolders) => {
-    if (!supportsFolders) {
-      setError('Folder drag & drop tidak didukung di browser ini.')
-    }
-    if (droppedEntries.length === 0) return
+  const handleLogsPageChange = (nextPage) => {
+    if (logsLoading) return
+    setLogsPage(nextPage)
+  }
 
-    // 1. Persiapkan context upload
-    const existingNames =
-      targetFolderId === folderId
-        ? files.map((file) => file.filename || file.originalName || file.name || '')
-        : []
-    const existingFolderNames =
-      targetFolderId === folderId
-        ? folders.map((f) => f.name)
-        : []
-    
-    const folderCache = new Map()
-    const fileNamePools = new Map()
-    const folderNamePools = new Map()
-    
-    const targetFilePool = new Set(existingNames.map((name) => name.trim().toLowerCase()))
-    fileNamePools.set(targetFolderId, targetFilePool)
-    
-    const targetFolderPool = new Set(existingFolderNames.map((name) => name.trim().toLowerCase()))
-    folderNamePools.set(targetFolderId, targetFolderPool)
-
-    // 2. Helper untuk auto-rename folder
-    const getUniqueFolderName = (name, parentId) => {
-      const pool = folderNamePools.get(parentId) || new Set()
-      const existing = Array.from(pool)
-      const safeName = name?.trim() || 'New Folder'
-      
-      const normalize = (val) => val.trim().toLowerCase()
-      const stripIndex = (val) => {
-        const match = val.match(/^(.*)\s\((\d+)\)$/)
-        return match ? { base: match[1], index: Number(match[2]) } : { base: val, index: 0 }
-      }
-      
-      const { base } = stripIndex(safeName)
-      let index = 0
-      let candidate = base
-      while (pool.has(normalize(candidate))) {
-        index += 1
-        candidate = `${base} (${index})`
-      }
-      return candidate
-    }
-
-    const ensureFolder = async (parentId, name, isRootEntry = false) => {
-      const key = `${parentId}|${name.toLowerCase()}`
-      let existingId = folderCache.get(key)
-      if (!existingId) {
-        let finalName = name
-        // Jika ini entry root (folder yang di-drop langsung), gunakan pool untuk rename
-        if (isRootEntry) {
-          const pool = folderNamePools.get(parentId) || new Set()
-          finalName = getUniqueFolderName(name, parentId)
-          pool.add(finalName.toLowerCase())
-        }
-        
-        const created = await createFolder(finalName, parentId === 'root' ? null : parentId)
-        existingId = created.publicId
-        folderCache.set(key, existingId)
-      }
-      return existingId
-    }
-
-    const getPool = (parentId) => {
-      const existing = fileNamePools.get(parentId)
-      if (existing) return existing
-      const next = new Set()
-      fileNamePools.set(parentId, next)
-      return next
-    }
-
-    const uploadFileEntry = async (file, parentId, nameOverride) => {
-      if (!file) return
-      const pool = getPool(parentId)
-      const name = nameOverride || file.name
-      const uniqueName = getUniqueFileName(name, Array.from(pool))
-      pool.add(uniqueName.toLowerCase())
-      const finalFile =
-        uniqueName !== file.name
-          ? new File([file], uniqueName, { type: file.type, lastModified: file.lastModified })
-          : file
-      await uploadQueue.startUpload?.(finalFile, parentId)
-    }
-
-    const uploadEntry = async (entry, parentId, isRootEntry = false) => {
-      if (entry.type === 'file') {
-        await uploadFileEntry(entry.file, parentId, entry.name)
-        return
-      }
-      if (entry.type === 'folder') {
-        setUploadNotice(`Mengupload folder: ${entry.name}`)
-        const folderId = await ensureFolder(parentId, entry.name, isRootEntry)
-        for (const child of entry.children || []) {
-          await uploadEntry(child, folderId, false)
-        }
-      }
-    }
-
-    const startExecution = async () => {
-      uploadQueue.beginBatch?.()
-      try {
-        for (const entry of droppedEntries) {
-          await uploadEntry(entry, targetFolderId, true)
-        }
-      } finally {
-        uploadQueue.endBatch?.()
-      }
-    }
-
-    // 3. Cek konflik folder di root drop secara async via Backend
-    try {
-      const foldersInDrop = droppedEntries.filter(e => e.type === 'folder')
-      
-      for (const entry of foldersInDrop) {
-        const { exists } = await checkFolderExists(entry.name, targetFolderId)
-        if (exists) {
-          setFolderExistsModal({
-            open: true,
-            folderName: entry.name,
-            onContinue: () => {
-              setFolderExistsModal({ open: false, folderName: '', onContinue: null })
-              startExecution()
-            }
-          })
-          return
-        }
-      }
-    } catch (err) {
-      console.error('Check folder exists failed:', err)
-      // Jika cek gagal, kita tetap lanjut saja (fail-safe) atau tampilkan error?
-      // Sesuai instruksi UX, kita sebaiknya sangat hati-hati. 
-      // Tapi untuk saat ini kita biarkan lanjut jika network error.
-    }
-
-    startExecution()
+  const handleDropUpload = (targetFolderId, droppedEntries, supportsFolders) => {
+    uploadQueue.handleDropUpload?.({
+      targetFolderId,
+      entries: droppedEntries,
+      supportsFolders
+    })
   }
 
   return (
@@ -611,7 +586,7 @@ const Drive = () => {
           {isDragging && (
             <div className="fixed inset-0 z-40 bg-black/20 flex items-center justify-center">
               <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4 text-sm font-semibold text-slate-700 shadow-xl dark:border-slate-700 dark:bg-[#202225] dark:text-slate-100">
-                Lepas file untuk upload ke folder ini
+                Lepaskan file atau folder untuk upload
               </div>
             </div>
           )}
@@ -697,9 +672,15 @@ const Drive = () => {
         </div>
       </div>
       {trashOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4 py-6" onClick={() => setTrashOpen(false)}>
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4 py-6"
+          onClick={() => {
+            if (trashCleaning) return
+            setTrashOpen(false)
+          }}
+        >
           <div
-            className="w-full max-w-5xl max-h-full flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-[#202225]"
+            className="relative w-full max-w-5xl max-h-full flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-[#202225]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3 p-5 border-b border-slate-100 dark:border-slate-800">
@@ -712,7 +693,10 @@ const Drive = () => {
               </div>
               <button
                 onClick={() => setTrashOpen(false)}
-                className="h-9 w-9 rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center dark:border-slate-700 dark:text-slate-300 dark:hover:bg-[#2a2c30]"
+                disabled={trashCleaning}
+                className={`h-9 w-9 rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center dark:border-slate-700 dark:text-slate-300 dark:hover:bg-[#2a2c30] ${
+                  trashCleaning ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
                 <FontAwesomeIcon icon={faXmark} />
               </button>
@@ -727,27 +711,24 @@ const Drive = () => {
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   onClick={loadTrash}
-                  className="px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-[#2a2c30]"
+                  disabled={trashCleaning}
+                  className={`px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-[#2a2c30] ${
+                    trashCleaning ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   Refresh
                 </button>
-                {canManage && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="1"
-                      value={cleanDays}
-                      onChange={(event) => setCleanDays(event.target.value)}
-                      className="w-24 px-3 py-2 rounded-xl border border-slate-200 text-sm dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
-                    />
-                    <button
-                      onClick={handleCleanTrash}
-                      className="px-3 py-2 rounded-xl bg-rose-600 text-white text-sm hover:bg-rose-500"
-                    >
-                      Clean Trash
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCleanTrash}
+                    disabled={trashCleaning}
+                    className={`px-3 py-2 rounded-xl bg-rose-600 text-white text-sm hover:bg-rose-500 ${
+                      trashCleaning ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    Clean Trash
+                  </button>
+                </div>
               </div>
               <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <section className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-[#1F2023]">
@@ -768,13 +749,19 @@ const Drive = () => {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleRestoreTrashFolder(folder)}
-                            className="px-2.5 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-xs hover:bg-emerald-50 dark:border-emerald-800/70 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
+                            disabled={trashCleaning}
+                            className={`px-2.5 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-xs hover:bg-emerald-50 dark:border-emerald-800/70 dark:text-emerald-300 dark:hover:bg-emerald-900/30 ${
+                              trashCleaning ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           >
                             Restore
                           </button>
                           <button
                             onClick={() => handleDeleteTrashFolder(folder)}
-                            className="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50 dark:border-red-800/70 dark:text-red-300 dark:hover:bg-red-900/30"
+                            disabled={trashCleaning}
+                            className={`px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50 dark:border-red-800/70 dark:text-red-300 dark:hover:bg-red-900/30 ${
+                              trashCleaning ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           >
                             Delete
                           </button>
@@ -803,13 +790,19 @@ const Drive = () => {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleRestoreTrashFile(file)}
-                            className="px-2.5 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-xs hover:bg-emerald-50 dark:border-emerald-800/70 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
+                            disabled={trashCleaning}
+                            className={`px-2.5 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-xs hover:bg-emerald-50 dark:border-emerald-800/70 dark:text-emerald-300 dark:hover:bg-emerald-900/30 ${
+                              trashCleaning ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           >
                             Restore
                           </button>
                           <button
                             onClick={() => handleDeleteTrashFile(file)}
-                            className="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50 dark:border-red-800/70 dark:text-red-300 dark:hover:bg-red-900/30"
+                            disabled={trashCleaning}
+                            className={`px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50 dark:border-red-800/70 dark:text-red-300 dark:hover:bg-red-900/30 ${
+                              trashCleaning ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           >
                             Delete
                           </button>
@@ -820,15 +813,100 @@ const Drive = () => {
                 </section>
               </div>
             </div>
+            {trashCleaning && (
+              <div className="absolute inset-0 z-10 bg-white/80 dark:bg-[#202225]/80 flex items-center justify-center">
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-lg dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-200">
+                  <span className="h-4 w-4 rounded-full border-2 border-slate-300 border-t-transparent animate-spin dark:border-slate-500" />
+                  Menghapus semua data di Trash...
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {trashConfirmOpen && (
+        <div className="fixed inset-0 z-[120] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center px-4">
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden dark:border-slate-800 dark:bg-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Clean Trash</div>
+              <button
+                onClick={() => setTrashConfirmOpen(false)}
+                disabled={trashCleaning}
+                className={`text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 ${
+                  trashCleaning ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            </div>
+            <div className="px-6 py-6">
+              <p className="text-[15px] leading-relaxed text-slate-600 dark:text-slate-400">
+                Semua file dan folder di Trash akan dihapus permanen. Aksi ini tidak bisa dibatalkan.
+              </p>
+              <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => setTrashConfirmOpen(false)}
+                  disabled={trashCleaning}
+                  className={`flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 ${
+                    trashCleaning ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmCleanTrash}
+                  disabled={trashCleaning}
+                  className={`flex-1 px-4 py-2.5 rounded-xl bg-rose-600 text-sm font-medium text-white hover:bg-rose-500 transition shadow-sm ${
+                    trashCleaning ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  Delete Permanently
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {trashCleaning && (
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 z-[110]">
+          <div className="w-full sm:w-[360px] bg-white border border-slate-200 rounded-2xl shadow-2xl dark:bg-[#202225] dark:border-slate-700">
+            <div className="flex items-center gap-3 px-4 py-3">
+              <span className="h-4 w-4 rounded-full border-2 border-slate-300 border-t-transparent animate-spin dark:border-slate-500" />
+              <div className="text-sm text-slate-700 dark:text-slate-200">Menghapus semua data di Trash...</div>
+            </div>
+          </div>
+        </div>
+      )}
+      {trashToast && (
+        <div className="fixed top-4 right-4 z-[110] max-w-sm text-sm rounded-xl px-3 py-2 shadow-lg border">
+          <div
+            className={
+              trashToast.type === 'success'
+                ? 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/60 dark:text-emerald-300'
+                : 'text-red-700 bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-300'
+            }
+          >
+            {trashToast.message}
           </div>
         </div>
       )}
       {logsOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4" onClick={() => setLogsOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4 py-6" onClick={() => setLogsOpen(false)}>
           <div
-            className="w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl p-5 dark:border-slate-700 dark:bg-[#202225]"
+            className="w-full max-w-5xl max-h-[85vh] h-full rounded-2xl border border-slate-200 bg-white shadow-2xl p-5 dark:border-slate-700 dark:bg-[#202225] flex flex-col relative"
             onClick={(event) => event.stopPropagation()}
           >
+            {logsLoading && (
+              <div className="absolute top-4 right-4 z-10">
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 shadow-lg dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-200">
+                  <span className="h-3 w-3 rounded-full border-2 border-slate-300 border-t-transparent animate-spin dark:border-slate-500" />
+                  Memuat activity log...
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-xs uppercase tracking-[0.25em] text-sky-500">Admin</div>
@@ -848,68 +926,173 @@ const Drive = () => {
               </div>
             )}
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <input
-                type="number"
-                min="1"
-                max="1000"
-                value={logsTake}
-                onChange={(event) => setLogsTake(event.target.value)}
-                className="w-24 px-3 py-2 rounded-xl border border-slate-200 text-sm dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
-              />
               <button
                 onClick={loadActivityLogs}
                 className="px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-[#2a2c30]"
               >
                 Refresh
               </button>
+              <input
+                type="text"
+                value={logsUserFilter}
+                onChange={(event) => {
+                  setLogsUserFilter(event.target.value)
+                  setLogsPage(1)
+                }}
+                placeholder="Filter user"
+                className="min-w-[160px] px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
+              />
+              <select
+                value={logsSort}
+                onChange={(event) => {
+                  setLogsSort(event.target.value)
+                  setLogsPage(1)
+                }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
+              >
+                <option value="newest">Paling baru</option>
+                <option value="oldest">Paling lama</option>
+              </select>
+              <select
+                value={logsTypeFilter}
+                onChange={(event) => {
+                  setLogsTypeFilter(event.target.value)
+                  setLogsPage(1)
+                }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
+              >
+                <option value="all">Semua jenis</option>
+                <option value="3d">File 3D</option>
+                <option value="text">File text</option>
+                <option value="other">Lainnya</option>
+              </select>
+              <select
+                value={logsActionFilter}
+                onChange={(event) => {
+                  setLogsActionFilter(event.target.value)
+                  setLogsPage(1)
+                }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 dark:border-slate-700 dark:bg-[#1F2023] dark:text-slate-100"
+              >
+                <option value="all">Semua aksi</option>
+                <option value="delete">Hapus</option>
+                <option value="upload">Upload</option>
+                <option value="share">Share</option>
+                <option value="create">Create</option>
+                <option value="other">Lainnya</option>
+              </select>
+              <div className="ml-auto flex items-center gap-2 text-sm text-slate-500 dark:text-slate-300">
+                <button
+                  onClick={() => handleLogsPageChange(Math.max(1, logsPage - 1))}
+                  disabled={!canPrevPage || logsLoading}
+                  className={`px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm ${
+                    !canPrevPage || logsLoading
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'text-slate-600 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-[#2a2c30]'
+                  } dark:border-slate-700`}
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => handleLogsPageChange(1)}
+                  disabled={logsLoading}
+                  className={`px-2.5 py-1.5 rounded-lg border ${
+                    logsPage === 1
+                      ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-[#2a2c30]'
+                  }`}
+                >
+                  1
+                </button>
+                {logPageButtons
+                  .filter((item) => item.value !== 1)
+                  .map((item) =>
+                    item.type === 'ellipsis' ? (
+                      <span key={item.key} className="px-1 text-slate-400">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={item.key}
+                        onClick={() => handleLogsPageChange(item.value)}
+                        disabled={logsLoading}
+                        className={`px-2.5 py-1.5 rounded-lg border ${
+                          logsPage === item.value
+                            ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-[#2a2c30]'
+                        }`}
+                      >
+                        {item.value}
+                      </button>
+                    )
+                  )}
+                <button
+                  onClick={() => handleLogsPageChange(logsPage + 1)}
+                  disabled={!canNextPage || logsLoading}
+                  className={`px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm ${
+                    !canNextPage || logsLoading
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'text-slate-600 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-[#2a2c30]'
+                  } dark:border-slate-700`}
+                >
+                  Next
+                </button>
+              </div>
             </div>
-            <div className="mt-4 overflow-x-auto">
+            <div className="mt-4 flex-1 min-h-0 overflow-hidden">
               {logsLoading ? (
                 <div className="text-sm text-slate-400">Memuat...</div>
               ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-slate-500 border-b dark:text-slate-400 dark:border-slate-700">
-                      <th className="py-2">User</th>
-                      <th>Action</th>
-                      <th>Status</th>
-                      <th>Message</th>
-                      <th>Waktu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {logs.length === 0 && (
-                      <tr>
-                        <td colSpan="5" className="py-4 text-center text-slate-400">
-                          Belum ada activity.
-                        </td>
+                <div className="max-h-full overflow-y-auto overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-white dark:bg-[#202225]">
+                      <tr className="text-left text-slate-500 border-b dark:text-slate-400 dark:border-slate-700">
+                        <th className="py-2">User</th>
+                        <th>Action</th>
+                        <th>Status</th>
+                        <th>Message</th>
+                        <th>Waktu</th>
                       </tr>
-                    )}
-                    {logs.map((log) => (
-                      <tr key={log.id} className="border-b last:border-b-0 align-top dark:border-slate-700">
-                        <td className="py-3">{log.userEmail || '-'}</td>
-                        <td className="py-3">{log.action}</td>
-                        <td className="py-3">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs ${
-                              log.status === 'success'
-                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                                : log.status === 'error'
-                                ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300'
-                                : 'bg-slate-100 text-slate-600 dark:bg-[#1F2023] dark:text-slate-300'
-                            }`}
-                          >
-                            {log.status}
-                          </span>
-                        </td>
-                        <td className="py-3">{log.message}</td>
-                        <td className="py-3">{new Date(log.createdAt).toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {pagedLogs.length === 0 && (
+                        <tr>
+                          <td colSpan="5" className="py-4 text-center text-slate-400">
+                            Belum ada activity.
+                          </td>
+                        </tr>
+                      )}
+                      {pagedLogs.map((log) => (
+                        <tr key={log.id} className="border-b last:border-b-0 align-top dark:border-slate-700">
+                          <td className="py-3">{log.userEmail || '-'}</td>
+                          <td className="py-3">{log.action}</td>
+                          <td className="py-3">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${
+                                log.status === 'success'
+                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                  : log.status === 'error'
+                                  ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300'
+                                  : 'bg-slate-100 text-slate-600 dark:bg-[#1F2023] dark:text-slate-300'
+                              }`}
+                            >
+                              {log.status}
+                            </span>
+                          </td>
+                          <td className="py-3">{log.message}</td>
+                          <td className="py-3">{new Date(log.createdAt).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
+            {!logsLoading && (
+              <div className="pt-3 text-xs text-slate-400">
+                Menampilkan {pagedLogs.length} dari {filteredLogs.length} log
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -921,13 +1104,6 @@ const Drive = () => {
         onClose={handleClosePreview}
         openAt={previewOpenAt}
       />
-      {folderExistsModal.open && (
-        <FolderExistsModal
-          folderName={folderExistsModal.folderName}
-          onCancel={() => setFolderExistsModal({ open: false, folderName: '', onContinue: null })}
-          onContinue={folderExistsModal.onContinue}
-        />
-      )}
     </div>
   )
 }

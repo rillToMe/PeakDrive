@@ -58,9 +58,9 @@ const hasWebkitEntrySupport = (items) => items.some((item) => typeof item.webkit
 
 const readDroppedEntries = async (dataTransfer) => {
   const items = Array.from(dataTransfer?.items || [])
+  const files = Array.from(dataTransfer?.files || [])
   const supportsFolders = items.length === 0 ? true : hasWebkitEntrySupport(items)
   if (items.length === 0) {
-    const files = Array.from(dataTransfer?.files || [])
     return {
       supportsFolders,
       entries: files.map((file) => ({
@@ -71,7 +71,30 @@ const readDroppedEntries = async (dataTransfer) => {
       }))
     }
   }
-  return { supportsFolders, entries: await flattenItems(items) }
+  if (!supportsFolders) {
+    return {
+      supportsFolders,
+      entries: files.map((file) => ({
+        type: 'file',
+        name: file.name || 'File',
+        file,
+        relativePath: file.name || 'File'
+      }))
+    }
+  }
+  const entries = await flattenItems(items)
+  if (entries.length === 0 && files.length > 0) {
+    return {
+      supportsFolders,
+      entries: files.map((file) => ({
+        type: 'file',
+        name: file.name || 'File',
+        file,
+        relativePath: file.name || 'File'
+      }))
+    }
+  }
+  return { supportsFolders, entries }
 }
 
 export default readDroppedEntries
