@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ditDriveAPI.Data;
 using ditDriveAPI.Health;
+using ditDriveAPI.Services.TreeD;
 
 static void LoadDotEnv(string filePath)
 {
@@ -79,6 +80,13 @@ static async Task RunTrashCleanup(IServiceProvider services, ILogger logger, str
             {
                 System.IO.File.Delete(fullPath);
             }
+            if (!string.IsNullOrWhiteSpace(file.ThumbnailName) && TryBuildThumbnailPath(file, storageRoot, out var thumbPath))
+            {
+                if (System.IO.File.Exists(thumbPath))
+                {
+                    System.IO.File.Delete(thumbPath);
+                }
+            }
         }
         db.Files.RemoveRange(filesToDelete);
         await db.SaveChangesAsync();
@@ -102,6 +110,13 @@ static void DeleteFolderTree(AppDbContext db, DriveFolder folder, string storage
         {
             System.IO.File.Delete(fullPath);
         }
+        if (!string.IsNullOrWhiteSpace(file.ThumbnailName) && TryBuildThumbnailPath(file, storageRoot, out var thumbPath))
+        {
+            if (System.IO.File.Exists(thumbPath))
+            {
+                System.IO.File.Delete(thumbPath);
+            }
+        }
     }
     db.Files.RemoveRange(files);
 
@@ -124,6 +139,24 @@ static bool TryBuildFilePath(DriveFile file, string storageRoot, out string full
     return fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase);
 }
 
+static bool TryBuildThumbnailPath(DriveFile file, string storageRoot, out string fullPath)
+{
+    fullPath = "";
+    if (string.IsNullOrWhiteSpace(file.ThumbnailName))
+    {
+        return false;
+    }
+    var root = storageRoot.EndsWith(Path.DirectorySeparatorChar) || storageRoot.EndsWith(Path.AltDirectorySeparatorChar)
+        ? storageRoot
+        : storageRoot + Path.DirectorySeparatorChar;
+    var thumbRoot = Path.GetFullPath(Path.Combine(root, "thumbnails"));
+    fullPath = Path.GetFullPath(Path.Combine(thumbRoot, file.ThumbnailName));
+    var expectedRoot = thumbRoot.EndsWith(Path.DirectorySeparatorChar) || thumbRoot.EndsWith(Path.AltDirectorySeparatorChar)
+        ? thumbRoot
+        : thumbRoot + Path.DirectorySeparatorChar;
+    return fullPath.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase);
+}
+
 LoadDotEnv(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
 
 var builder = WebApplication.CreateBuilder(args);
@@ -134,6 +167,7 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<HealthService>();
+builder.Services.AddScoped<TreeDThumbnailService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

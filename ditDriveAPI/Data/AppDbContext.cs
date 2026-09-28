@@ -117,6 +117,7 @@ public class DriveFile
     public string PublicId { get; set; } = "";
     public string Filename { get; set; } = "";
     public string StoredName { get; set; } = "";
+    public string? ThumbnailName { get; set; }
     public string FileType { get; set; } = "";
     public long Size { get; set; }
     public DateTime UploadedAt { get; set; }

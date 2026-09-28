@@ -1,17 +1,20 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ditDriveAPI.Data;
+using ditDriveAPI.Services.TreeD;
+using SixLabors.ImageSharp.Formats.Png;
 
 namespace ditDriveAPI.Controllers;
 
 [ApiController]
 [Route("api/files")]
 [Authorize]
-public class FilesController(AppDbContext db, IConfiguration configuration, IWebHostEnvironment environment) : ControllerBase
+public class FilesController(AppDbContext db, IConfiguration configuration, IWebHostEnvironment environment, TreeDThumbnailService treeDThumbnailService) : ControllerBase
 {
     private readonly AppDbContext _db = db;
     private readonly IConfiguration _configuration = configuration;
     private readonly IWebHostEnvironment _environment = environment;
+    private readonly TreeDThumbnailService _treeDThumbnailService = treeDThumbnailService;
 
     [HttpPost("upload")]
     [RequestSizeLimit(long.MaxValue)]
@@ -80,7 +83,87 @@ public class FilesController(AppDbContext db, IConfiguration configuration, IWeb
         _db.SaveChanges();
         LogActivity(userId, "upload", "success", $"Uploaded {driveFile.Filename}");
 
-        return Ok(new FileDetailDto(driveFile.PublicId, driveFile.Filename, driveFile.FileType, driveFile.Size, driveFile.UploadedAt));
+        if (_treeDThumbnailService.IsModelFile(driveFile.Filename))
+        {
+            try
+            {
+                if (_treeDThumbnailService.TryGenerateModelThumbnail(fullPath, driveFile, userId, out var thumbName))
+                {
+                    driveFile.ThumbnailName = thumbName;
+                    _db.SaveChanges();
+                }
+                else
+                {
+                    _db.Files.Remove(driveFile);
+                    _db.SaveChanges();
+                    if (System.IO.File.Exists(fullPath))
+                    {
+                        System.IO.File.Delete(fullPath);
+                    }
+                    return StatusCode(500, "Gagal render thumbnail 3D.");
+                }
+            }
+            catch
+            {
+                _db.Files.Remove(driveFile);
+                _db.SaveChanges();
+                if (System.IO.File.Exists(fullPath))
+                {
+                    System.IO.File.Delete(fullPath);
+                }
+                return StatusCode(500, "Gagal render thumbnail 3D.");
+            }
+        }
+
+        return Ok(new FileDetailDto(
+            driveFile.PublicId,
+            driveFile.Filename,
+            driveFile.FileType,
+            driveFile.Size,
+            driveFile.UploadedAt,
+            driveFile.ThumbnailName));
+    }
+
+    [HttpGet("thumbnail/{publicId}")]
+    public IActionResult ViewThumbnail(string publicId)
+    {
+        var userId = GetUserId();
+        var file = _db.Files.FirstOrDefault(f => f.PublicId == publicId && f.UserId == userId && f.DeletedAt == null);
+        if (file == null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(file.ThumbnailName))
+        {
+            if (_treeDThumbnailService.TryGetThumbnailOutputPath(userId, file.PublicId, out var newName, out _))
+            {
+                file.ThumbnailName = newName;
+                _db.SaveChanges();
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(file.ThumbnailName) ||
+            !_treeDThumbnailService.TryBuildThumbnailPath(file, out var thumbPath) ||
+            !System.IO.File.Exists(thumbPath))
+        {
+            if (_treeDThumbnailService.IsModelFile(file.Filename) && TryBuildFilePath(file, out var fullPath))
+            {
+                _ = _treeDThumbnailService.EnsureThumbnailInBackground(fullPath, file, userId);
+            }
+            using var fallback = _treeDThumbnailService.RenderFallbackThumbnail();
+            using var stream = new MemoryStream();
+            fallback.Save(stream, new PngEncoder());
+            stream.Position = 0;
+            return File(stream.ToArray(), "image/png");
+        }
+
+        var outputStream = System.IO.File.OpenRead(thumbPath);
+        var contentType = Path.GetExtension(thumbPath).Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                          Path.GetExtension(thumbPath).Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+            ? "image/jpeg"
+            : "image/png";
+        return File(outputStream, contentType);
     }
 
     [HttpGet("view/{publicId}")]
@@ -140,6 +223,35 @@ public class FilesController(AppDbContext db, IConfiguration configuration, IWeb
         return Ok(new StorageUsageDto(totalBytes));
     }
 
+    [HttpPut("{publicId}")]
+    public IActionResult RenameFile(string publicId, [FromBody] RenameFileRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BadRequest("File name is required.");
+        }
+
+        var userId = GetUserId();
+        var file = _db.Files.FirstOrDefault(f =>
+            f.PublicId == publicId && f.UserId == userId && f.DeletedAt == null);
+        if (file == null)
+        {
+            return NotFound();
+        }
+
+        file.Filename = request.Name.Trim();
+        _db.SaveChanges();
+        LogActivity(userId, "rename-file", "success", $"Renamed {file.PublicId}");
+
+        return Ok(new FileDetailDto(
+            file.PublicId,
+            file.Filename,
+            file.FileType,
+            file.Size,
+            file.UploadedAt,
+            file.ThumbnailName));
+    }
+
     [HttpDelete("{publicId}")]
     public IActionResult DeleteFile(string publicId)
     {
@@ -148,6 +260,10 @@ public class FilesController(AppDbContext db, IConfiguration configuration, IWeb
         if (file == null)
         {
             return NotFound();
+        }
+        if (_treeDThumbnailService.TryMoveThumbnailToTrash(file, userId, out var nextThumbnailName))
+        {
+            file.ThumbnailName = nextThumbnailName;
         }
         file.DeletedAt = DateTime.UtcNow;
         _db.SaveChanges();
@@ -218,17 +334,25 @@ public class FilesController(AppDbContext db, IConfiguration configuration, IWeb
     }
 }
 
-public record FileDetailDto(string PublicId, string Filename, string FileType, long Size, DateTime UploadedAt);
+public record FileDetailDto(
+    string PublicId,
+    string Filename,
+    string FileType,
+    long Size,
+    DateTime UploadedAt,
+    string? ThumbnailName);
 public record StorageUsageDto(long TotalBytes);
+public record RenameFileRequest(string Name);
 
 [ApiController]
 [Route("api/trash")]
 [Authorize]
-public class TrashController(AppDbContext db, IConfiguration configuration, IWebHostEnvironment environment) : ControllerBase
+public class TrashController(AppDbContext db, IConfiguration configuration, IWebHostEnvironment environment, TreeDThumbnailService treeDThumbnailService) : ControllerBase
 {
     private readonly AppDbContext _db = db;
     private readonly IConfiguration _configuration = configuration;
     private readonly IWebHostEnvironment _environment = environment;
+    private readonly TreeDThumbnailService _treeDThumbnailService = treeDThumbnailService;
 
     [HttpGet]
     public IActionResult GetTrash()
@@ -287,8 +411,18 @@ public class TrashController(AppDbContext db, IConfiguration configuration, IWeb
         }
 
         file.DeletedAt = null;
+        if (_treeDThumbnailService.TryRestoreThumbnailFromTrash(file, userId, out var nextThumbnailName))
+        {
+            file.ThumbnailName = nextThumbnailName;
+        }
         _db.SaveChanges();
-        return Ok(new FileDto(file.PublicId, file.Filename, file.FileType, file.Size, file.UploadedAt));
+        return Ok(new FileDto(
+            file.PublicId,
+            file.Filename,
+            file.FileType,
+            file.Size,
+            file.UploadedAt,
+            file.ThumbnailName));
     }
 
     [HttpPost("restore/folder/{publicId}")]
@@ -337,6 +471,14 @@ public class TrashController(AppDbContext db, IConfiguration configuration, IWeb
         if (System.IO.File.Exists(fullPath))
         {
             System.IO.File.Delete(fullPath);
+        }
+        if (!string.IsNullOrWhiteSpace(file.ThumbnailName) &&
+            _treeDThumbnailService.TryBuildThumbnailPath(file, out var thumbPath))
+        {
+            if (System.IO.File.Exists(thumbPath))
+            {
+                System.IO.File.Delete(thumbPath);
+            }
         }
 
         _db.Files.Remove(file);
@@ -405,6 +547,14 @@ public class TrashController(AppDbContext db, IConfiguration configuration, IWeb
             {
                 System.IO.File.Delete(fullPath);
             }
+            if (!string.IsNullOrWhiteSpace(file.ThumbnailName) &&
+                _treeDThumbnailService.TryBuildThumbnailPath(file, out var thumbPath))
+            {
+                if (System.IO.File.Exists(thumbPath))
+                {
+                    System.IO.File.Delete(thumbPath);
+                }
+            }
         }
         _db.Files.RemoveRange(filesToDelete);
         _db.SaveChanges();
@@ -434,6 +584,10 @@ public class TrashController(AppDbContext db, IConfiguration configuration, IWeb
         foreach (var file in files)
         {
             file.DeletedAt = null;
+            if (_treeDThumbnailService.TryRestoreThumbnailFromTrash(file, userId, out var nextThumbnailName))
+            {
+                file.ThumbnailName = nextThumbnailName;
+            }
         }
 
         var children = _db.Folders.Where(f => f.UserId == userId && f.ParentId == folder.Id && f.DeletedAt != null).ToList();
@@ -455,6 +609,14 @@ public class TrashController(AppDbContext db, IConfiguration configuration, IWeb
             if (System.IO.File.Exists(fullPath))
             {
                 System.IO.File.Delete(fullPath);
+            }
+            if (!string.IsNullOrWhiteSpace(file.ThumbnailName) &&
+                _treeDThumbnailService.TryBuildThumbnailPath(file, out var thumbPath))
+            {
+                if (System.IO.File.Exists(thumbPath))
+                {
+                    System.IO.File.Delete(thumbPath);
+                }
             }
         }
         _db.Files.RemoveRange(files);
@@ -492,6 +654,14 @@ public class TrashController(AppDbContext db, IConfiguration configuration, IWeb
             if (System.IO.File.Exists(fullPath))
             {
                 System.IO.File.Delete(fullPath);
+            }
+            if (!string.IsNullOrWhiteSpace(file.ThumbnailName) &&
+                _treeDThumbnailService.TryBuildThumbnailPath(file, out var thumbPath))
+            {
+                if (System.IO.File.Exists(thumbPath))
+                {
+                    System.IO.File.Delete(thumbPath);
+                }
             }
         }
         _db.Files.RemoveRange(filesToDelete);

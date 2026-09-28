@@ -2,17 +2,19 @@ using System.IO.Compression;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ditDriveAPI.Data;
+using ditDriveAPI.Services.TreeD;
 
 namespace ditDriveAPI.Controllers;
 
 [ApiController]
 [Route("api/folders")]
 [Authorize]
-public class FoldersController(AppDbContext db, IConfiguration configuration, IWebHostEnvironment environment) : ControllerBase
+public class FoldersController(AppDbContext db, IConfiguration configuration, IWebHostEnvironment environment, TreeDThumbnailService treeDThumbnailService) : ControllerBase
 {
     private readonly AppDbContext _db = db;
     private readonly IConfiguration _configuration = configuration;
     private readonly IWebHostEnvironment _environment = environment;
+    private readonly TreeDThumbnailService _treeDThumbnailService = treeDThumbnailService;
 
     [HttpGet("exists")]
     public IActionResult CheckFolderExists([FromQuery] string name, [FromQuery] string? parentPublicId)
@@ -97,10 +99,13 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
             var rootFiles = _db.Files
                 .Where(f => f.UserId == userId && f.FolderId == null && f.DeletedAt == null)
                 .OrderBy(f => f.Filename)
-                .Select(f => new FileDto(f.PublicId, f.Filename, f.FileType, f.Size, f.UploadedAt))
+                .ToList();
+            EnsureThumbnailNames(rootFiles, userId);
+            var rootFileDtos = rootFiles
+                .Select(f => new FileDto(f.PublicId, f.Filename, f.FileType, f.Size, f.UploadedAt, f.ThumbnailName))
                 .ToList();
 
-            return Ok(new FolderListing(null, rootFolders, rootFiles));
+            return Ok(new FolderListing(null, rootFolders, rootFileDtos));
         }
 
         var folderEntity = _db.Folders.FirstOrDefault(f =>
@@ -119,7 +124,10 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
         var files = _db.Files
             .Where(f => f.UserId == userId && f.FolderId == folderEntity.Id && f.DeletedAt == null)
             .OrderBy(f => f.Filename)
-            .Select(f => new FileDto(f.PublicId, f.Filename, f.FileType, f.Size, f.UploadedAt))
+            .ToList();
+        EnsureThumbnailNames(files, userId);
+        var fileDtos = files
+            .Select(f => new FileDto(f.PublicId, f.Filename, f.FileType, f.Size, f.UploadedAt, f.ThumbnailName))
             .ToList();
 
         var parentPublicId = folderEntity.ParentId.HasValue
@@ -129,7 +137,7 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
         return Ok(new FolderListing(
             new FolderDto(folderEntity.PublicId, folderEntity.Name, parentPublicId, folderEntity.CreatedAt),
             folders,
-            files
+            fileDtos
         ));
     }
 
@@ -288,6 +296,14 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
             {
                 System.IO.File.Delete(fullPath);
             }
+            if (!string.IsNullOrWhiteSpace(file.ThumbnailName) &&
+                _treeDThumbnailService.TryBuildThumbnailPath(file, out var thumbPath))
+            {
+                if (System.IO.File.Exists(thumbPath))
+                {
+                    System.IO.File.Delete(thumbPath);
+                }
+            }
         }
         _db.Files.RemoveRange(files);
 
@@ -306,6 +322,10 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
         var files = _db.Files.Where(f => f.UserId == userId && f.FolderId == folder.Id && f.DeletedAt == null).ToList();
         foreach (var file in files)
         {
+            if (_treeDThumbnailService.TryMoveThumbnailToTrash(file, userId, out var nextThumbnailName))
+            {
+                file.ThumbnailName = nextThumbnailName;
+            }
             file.DeletedAt = deletedAt;
         }
 
@@ -342,6 +362,31 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
         return Path.GetFullPath(basePath);
     }
 
+    private void EnsureThumbnailNames(List<DriveFile> files, int userId)
+    {
+        var changed = false;
+        foreach (var file in files)
+        {
+            if (!string.IsNullOrWhiteSpace(file.ThumbnailName))
+            {
+                continue;
+            }
+            if (!_treeDThumbnailService.IsModelFile(file.Filename))
+            {
+                continue;
+            }
+            if (_treeDThumbnailService.TryGetThumbnailOutputPath(userId, file.PublicId, out var name, out _))
+            {
+                file.ThumbnailName = name;
+                changed = true;
+            }
+        }
+        if (changed)
+        {
+            _db.SaveChanges();
+        }
+    }
+
     private bool TryBuildFilePath(DriveFile file, out string fullPath)
     {
         var root = GetStorageRoot();
@@ -367,5 +412,11 @@ public class FoldersController(AppDbContext db, IConfiguration configuration, IW
 public record CreateFolderRequest(string Name, string? ParentPublicId);
 public record RenameFolderRequest(string Name);
 public record FolderDto(string PublicId, string Name, string? ParentPublicId, DateTime CreatedAt);
-public record FileDto(string PublicId, string Filename, string FileType, long Size, DateTime UploadedAt);
+public record FileDto(
+    string PublicId,
+    string Filename,
+    string FileType,
+    long Size,
+    DateTime UploadedAt,
+    string? ThumbnailName);
 public record FolderListing(FolderDto? Folder, List<FolderDto> Folders, List<FileDto> Files);
