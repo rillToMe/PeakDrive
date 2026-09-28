@@ -1,3 +1,20 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Environment
+.env
+.env.*
+
+# Uploaded storage (user data; never commit)
+/storage/
+
+# Node / frontend
+**/node_modules/
+**/dist/
+**/.vite/
+
+# Editors / OS
 .vs/
 .vscode/
 *.suo
@@ -9,15 +26,7 @@ Thumbs.db
 .DS_Store
 deploy/
 
+# Legacy .NET build artefacts (kept for safety)
 **/bin/
 **/obj/
 **/TestResults/
-
-**/node_modules/
-**/dist/
-**/.vite/
-
-.env
-.env.*
-
-ditDriveAPI/storage/

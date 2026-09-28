@@ -1,0 +1,56 @@
+[package]
+name = "peakdrive-api"
+version = "1.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "peakdrive-api"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.8", features = ["multipart", "macros"] }
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
+tower-http = { version = "0.6", features = ["cors", "limit"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "chrono",
+    "macros",
+    "migrate",
+] }
+chrono = { version = "0.4", features = ["serde"] }
+jsonwebtoken = "9"
+uuid = { version = "1", features = ["v4"] }
+rand = "0.8"
+pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
+hmac = "0.12"
+sha1 = "0.10"
+sha2 = "0.10"
+subtle = "2"
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = [
+    "png",
+    "jpeg",
+    "gif",
+    "webp",
+    "bmp",
+] }
+russimp-ng = "3"
+# No prebuilt Assimp archive is published for russimp-sys-ng 2.0.6, so Assimp is
+# built from source via its bundled CMake project. `static-link` also sets
+# BUILD_SHARED_LIBS=OFF so `assimp.lib` is linked into the executable instead of
+# requiring `assimp.dll` beside it at runtime.
+russimp-sys-ng = { version = "2", features = ["static-link"] }
+zip = "2"
+dotenvy = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "2"
+
+[profile.release]
+opt-level = 2
